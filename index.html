@@ -735,4 +735,575 @@
             {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"authorizedVerifiers","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
             {"inputs":[],"name":"emergencyWithdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[],"name":"gameCounter","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"gameRecords","outputs":[{"internalType":"address","name":"player","type":"address"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"string","name":"encryptedScore","type":"string"},{"internalType":"string","name":"formation","type":"string"},{"internalType":"bool","name
+            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"gameRecords","outputs":[{"internalType":"address","name":"player","type":"address"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"string","name":"encryptedScore","type":"string"},{"internalType":"string","name":"formation","type":"string"},{"internalType":"bool","name":"verified","type":"bool"},{"internalType":"string","name":"zkProof","type":"string"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getContractBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_gameId","type":"uint256"}],"name":"getGameRecord","outputs":[{"components":[{"internalType":"address","name":"player","type":"address"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"string","name":"encryptedScore","type":"string"},{"internalType":"string","name":"formation","type":"string"},{"internalType":"bool","name":"verified","type":"bool"},{"internalType":"string","name":"zkProof","type":"string"}],"internalType":"struct SportStacking.GameRecord","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getGlobalRecord","outputs":[{"internalType":"uint32","name":"record","type":"uint32"},{"internalType":"address","name":"holder","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getLeaderboard","outputs":[{"internalType":"address[]","name":"topPlayers","type":"address[]"},{"internalType":"uint32[]","name":"scores","type":"uint32[]"},{"internalType":"uint256","name":"count","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"_player","type":"address"}],"name":"getPlayerGames","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"_player","type":"address"}],"name":"getPlayerStats","outputs":[{"components":[{"internalType":"string","name":"nickname","type":"string"},{"internalType":"uint32","name":"totalGames","type":"uint32"},{"internalType":"uint32","name":"bestScore","type":"uint32"},{"internalType":"uint256[]","name":"gameIds","type":"uint256[]"}],"internalType":"struct SportStacking.Player","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"globalRecord","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"pause","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"players","outputs":[{"internalType":"string","name":"nickname","type":"string"},{"internalType":"uint32","name":"totalGames","type":"uint32"},{"internalType":"uint32","name":"bestScore","type":"uint32"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"string","name":"_encryptedScore","type":"string"},{"internalType":"string","name":"_formation","type":"string"},{"internalType":"string","name":"_zkProof","type":"string"},{"internalType":"string","name":"_nickname","type":"string"},{"internalType":"uint32","name":"_rawScore","type":"uint32"}],"name":"recordGame","outputs":[],"stateMutability":"payable","type":"function"},
+            {"inputs":[],"name":"recordHolder","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"_verifier","type":"address"}],"name":"removeVerifier","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_newFee","type":"uint256"}],"name":"updateEntryFee","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_gameId","type":"uint256"},{"internalType":"bool","name":"_isValid","type":"bool"}],"name":"verifyScore","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}
+        ];
+
+        const BASE_SEPOLIA_NETWORK = {
+            chainId: '0x14a34', // 84532 in hex
+            chainName: 'Base Sepolia Testnet',
+            nativeCurrency: {
+                name: 'ETH',
+                symbol: 'ETH',
+                decimals: 18,
+            },
+            rpcUrls: ['https://sepolia.base.org'],
+            blockExplorerUrls: ['https://sepolia.basescan.org'],
+        };
+
+        // Initialize Game
+        document.addEventListener('DOMContentLoaded', async function() {
+            initializeGame();
+            await checkWalletConnection();
+            await loadContractData();
+        });
+
+        function initializeGame() {
+            // Initialize cup states
+            const cups = document.querySelectorAll('.cup');
+            cups.forEach((cup, index) => {
+                gameState.cupStates[index] = false;
+                cup.addEventListener('click', () => stackCup(cup, index));
+            });
+
+            // Update initial display
+            updateGameStats();
+        }
+
+        // Wallet Connection Functions
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    showToast('MetaMask chưa được cài đặt!', 'error');
+                    return;
+                }
+
+                updateNetworkStatus('connecting', 'Đang kết nối...');
+                document.getElementById('connectBtn').innerHTML = '<div class="loading"></div> Đang kết nối...';
+                document.getElementById('connectBtn').disabled = true;
+
+                // Request account access
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (accounts.length === 0) {
+                    throw new Error('Không có tài khoản nào được chọn');
+                }
+
+                // Check and switch to Base Sepolia
+                await switchToBaseSepolia();
+
+                // Initialize provider and contract
+                blockchainState.provider = new ethers.providers.Web3Provider(window.ethereum);
+                blockchainState.account = accounts[0];
+                
+                const signer = blockchainState.provider.getSigner();
+                blockchainState.contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+                // Get balance
+                const balance = await blockchainState.provider.getBalance(blockchainState.account);
+                blockchainState.balance = parseFloat(ethers.utils.formatEther(balance));
+
+                // Update UI
+                blockchainState.connected = true;
+                updateWalletUI();
+                updateNetworkStatus('connected', 'Đã kết nối Base Sepolia');
+
+                showToast('Kết nối ví thành công!', 'success');
+
+                // Listen for account/network changes
+                window.ethereum.on('accountsChanged', handleAccountsChanged);
+                window.ethereum.on('chainChanged', handleChainChanged);
+
+            } catch (error) {
+                console.error('Lỗi kết nối ví:', error);
+                showToast('Lỗi kết nối: ' + error.message, 'error');
+                updateNetworkStatus('disconnected', 'Kết nối thất bại');
+                
+                // Reset button
+                document.getElementById('connectBtn').innerHTML = '🦊 Kết nối MetaMask';
+                document.getElementById('connectBtn').disabled = false;
+            }
+        }
+
+        async function switchToBaseSepolia() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: BASE_SEPOLIA_NETWORK.chainId }],
+                });
+            } catch (switchError) {
+                // Network not added, add it
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [BASE_SEPOLIA_NETWORK],
+                        });
+                    } catch (addError) {
+                        throw new Error('Không thể thêm Base Sepolia network');
+                    }
+                } else {
+                    throw switchError;
+                }
+            }
+        }
+
+        async function checkWalletConnection() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        // Auto-connect if previously connected
+                        await connectWallet();
+                    } else {
+                        updateNetworkStatus('disconnected', 'MetaMask phát hiện - Click để kết nối');
+                    }
+                } else {
+                    updateNetworkStatus('disconnected', 'Cần cài đặt MetaMask');
+                }
+            } catch (error) {
+                console.error('Lỗi kiểm tra ví:', error);
+                updateNetworkStatus('disconnected', 'Lỗi kiểm tra kết nối');
+            }
+        }
+
+        function handleAccountsChanged(accounts) {
+            if (accounts.length === 0) {
+                // Disconnected
+                blockchainState.connected = false;
+                blockchainState.account = null;
+                updateWalletUI();
+                updateNetworkStatus('disconnected', 'Ví đã ngắt kết nối');
+                showToast('Ví đã ngắt kết nối', 'warning');
+            } else if (accounts[0] !== blockchainState.account) {
+                // Account changed
+                blockchainState.account = accounts[0];
+                updateWalletUI();
+                showToast('Đã chuyển tài khoản', 'success');
+            }
+        }
+
+        function handleChainChanged(chainId) {
+            if (chainId !== BASE_SEPOLIA_NETWORK.chainId) {
+                updateNetworkStatus('disconnected', 'Sai network - Vui lòng chuyển về Base Sepolia');
+                showToast('Vui lòng chuyển về Base Sepolia network', 'warning');
+            } else {
+                updateNetworkStatus('connected', 'Đã kết nối Base Sepolia');
+            }
+        }
+
+        function updateWalletUI() {
+            const walletStatus = document.getElementById('walletStatus');
+            const walletAddress = document.getElementById('walletAddress');
+            const walletBalance = document.getElementById('walletBalance');
+            const connectBtn = document.getElementById('connectBtn');
+
+            if (blockchainState.connected) {
+                walletStatus.textContent = 'Đã kết nối';
+                walletAddress.textContent = `${blockchainState.account.slice(0, 6)}...${blockchainState.account.slice(-4)}`;
+                walletAddress.style.display = 'block';
+                walletBalance.textContent = blockchainState.balance.toFixed(4);
+                connectBtn.innerHTML = '✅ Đã kết nối';
+                connectBtn.disabled = true;
+            } else {
+                walletStatus.textContent = 'Chưa kết nối';
+                walletAddress.style.display = 'none';
+                walletBalance.textContent = '0';
+                connectBtn.innerHTML = '🦊 Kết nối MetaMask';
+                connectBtn.disabled = false;
+            }
+        }
+
+        function updateNetworkStatus(status, message) {
+            const dot = document.getElementById('networkDot');
+            const statusText = document.getElementById('networkStatus');
+            
+            dot.className = `status-dot ${status}`;
+            statusText.textContent = message;
+        }
+
+        // Contract Data Functions
+        async function loadContractData() {
+            try {
+                if (blockchainState.contract) {
+                    // Get entry fee
+                    const entryFee = await blockchainState.contract.ENTRY_FEE();
+                    blockchainState.entryFee = parseFloat(ethers.utils.formatEther(entryFee));
+                    document.getElementById('entryFee').textContent = blockchainState.entryFee.toFixed(6);
+
+                    // Get global record
+                    await loadGlobalRecord();
+                    
+                    // Load leaderboard
+                    await loadLeaderboard();
+                }
+            } catch (error) {
+                console.error('Lỗi tải dữ liệu contract:', error);
+            }
+        }
+
+        async function loadGlobalRecord() {
+            try {
+                const [record, holder] = await blockchainState.contract.getGlobalRecord();
+                const recordTime = record.toNumber();
+                
+                if (recordTime < 4294967295) { // Not max uint32
+                    document.getElementById('globalRecord').textContent = formatTime(recordTime);
+                } else {
+                    document.getElementById('globalRecord').textContent = '--:--:--';
+                }
+            } catch (error) {
+                console.error('Lỗi tải kỷ lục:', error);
+            }
+        }
+
+        async function loadLeaderboard() {
+            try {
+                const leaderboardDiv = document.getElementById('leaderboard');
+                const [players, scores, count] = await blockchainState.contract.getLeaderboard();
+                
+                leaderboardDiv.innerHTML = '';
+
+                if (count.toNumber() === 0) {
+                    leaderboardDiv.innerHTML = `
+                        <div class="leaderboard-entry">
+                            <div class="player-info">
+                                <div class="rank-badge rank-other">?</div>
+                                <div>
+                                    <div class="player-name">Chưa có dữ liệu</div>
+                                    <div class="tx-info">Hãy là người đầu tiên lưu điểm!</div>
+                                </div>
+                            </div>
+                            <div class="player-score">--:--:--</div>
+                        </div>
+                    `;
+                } else {
+                    for (let i = 0; i < Math.min(count.toNumber(), 10); i++) {
+                        const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
+                        const address = players[i];
+                        const score = scores[i].toNumber();
+                        
+                        leaderboardDiv.innerHTML += `
+                            <div class="leaderboard-entry">
+                                <div class="player-info">
+                                    <div class="rank-badge ${rankClass}">${i + 1}</div>
+                                    <div>
+                                        <div class="player-name">${address.slice(0, 6)}...${address.slice(-4)}</div>
+                                        <div class="tx-info">Verified on blockchain</div>
+                                    </div>
+                                </div>
+                                <div class="player-score">${formatTime(score)}</div>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Lỗi tải leaderboard:', error);
+                document.getElementById('leaderboard').innerHTML = `
+                    <div class="leaderboard-entry">
+                        <div class="player-info">
+                            <div class="rank-badge rank-other">!</div>
+                            <div>
+                                <div class="player-name">Lỗi tải dữ liệu</div>
+                                <div class="tx-info">Vui lòng thử lại sau</div>
+                            </div>
+                        </div>
+                        <div class="player-score">--:--:--</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Game Functions
+        function startGame() {
+            if (gameState.isPlaying) return;
+
+            gameState.isPlaying = true;
+            gameState.startTime = Date.now();
+            gameState.cupsStacked = 0;
+            gameState.finalTime = null;
+
+            // Reset all cups
+            Object.keys(gameState.cupStates).forEach(key => {
+                gameState.cupStates[key] = false;
+            });
+            document.querySelectorAll('.cup').forEach(cup => {
+                cup.classList.remove('stacked');
+            });
+
+            // Update UI
+            updateGameStatus('playing', 'Đang chơi... Click các ly để xếp!');
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('saveBtn').disabled = true;
+
+            // Start timer
+            startTimer();
+        }
+
+        function stopGame() {
+            if (!gameState.isPlaying) return;
+
+            gameState.isPlaying = false;
+            gameState.finalTime = gameState.currentTime;
+
+            // Update UI
+            updateGameStatus('finished', `Hoàn thành! Thời gian: ${formatTime(gameState.finalTime)}`);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            if (blockchainState.connected && gameState.cupsStacked === gameState.totalCups) {
+                document.getElementById('saveBtn').disabled = false;
+            }
+
+            // Stop timer
+            if (gameState.timerInterval) {
+                clearInterval(gameState.timerInterval);
+                gameState.timerInterval = null;
+            }
+
+            showToast(`Hoàn thành với thời gian ${formatTime(gameState.finalTime)}!`, 'success');
+        }
+
+        function resetGame() {
+            // Stop game if playing
+            if (gameState.isPlaying) {
+                gameState.isPlaying = false;
+                if (gameState.timerInterval) {
+                    clearInterval(gameState.timerInterval);
+                    gameState.timerInterval = null;
+                }
+            }
+
+            // Reset state
+            gameState.startTime = null;
+            gameState.currentTime = 0;
+            gameState.cupsStacked = 0;
+            gameState.finalTime = null;
+
+            // Reset cups
+            Object.keys(gameState.cupStates).forEach(key => {
+                gameState.cupStates[key] = false;
+            });
+            document.querySelectorAll('.cup').forEach(cup => {
+                cup.classList.remove('stacked');
+            });
+
+            // Update UI
+            updateGameStatus('ready', 'Sẵn sàng bắt đầu!');
+            document.getElementById('timer').textContent = '00:00:00';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('saveBtn').disabled = true;
+
+            updateGameStats();
+        }
+
+        function startTimer() {
+            gameState.timerInterval = setInterval(() => {
+                if (gameState.isPlaying) {
+                    gameState.currentTime = Date.now() - gameState.startTime;
+                    document.getElementById('timer').textContent = formatTime(gameState.currentTime);
+                    updateGameStats();
+                }
+            }, 10); // Update every 10ms for smooth animation
+        }
+
+        function stackCup(cup, index) {
+            if (!gameState.isPlaying || gameState.cupStates[index]) return;
+
+            // Stack the cup
+            gameState.cupStates[index] = true;
+            gameState.cupsStacked++;
+            cup.classList.add('stacked');
+
+            // Update stats
+            updateGameStats();
+
+            // Check if all cups are stacked
+            if (gameState.cupsStacked >= gameState.totalCups) {
+                setTimeout(() => {
+                    stopGame();
+                }, 100);
+            }
+        }
+
+        function updateGameStats() {
+            document.getElementById('cupsStacked').textContent = gameState.cupsStacked;
+            
+            // Calculate speed (cups per second)
+            if (gameState.currentTime > 0) {
+                const speed = (gameState.cupsStacked / (gameState.currentTime / 1000)).toFixed(1);
+                document.getElementById('currentSpeed').textContent = speed;
+            } else {
+                document.getElementById('currentSpeed').textContent = '0';
+            }
+        }
+
+        function updateGameStatus(status, message) {
+            const statusElement = document.getElementById('gameStatus');
+            statusElement.textContent = message;
+            statusElement.className = `status ${status}`;
+        }
+
+        // Blockchain Functions
+        async function saveToBlockchain() {
+            if (!blockchainState.connected) {
+                showToast('Vui lòng kết nối ví trước!', 'error');
+                return;
+            }
+
+            if (!gameState.finalTime || gameState.cupsStacked < gameState.totalCups) {
+                showToast('Chưa hoàn thành game!', 'error');
+                return;
+            }
+
+            try {
+                updateGameStatus('blockchain', 'Đang lưu lên blockchain...');
+                document.getElementById('saveBtn').innerHTML = '<div class="loading"></div> Đang lưu...';
+                document.getElementById('saveBtn').disabled = true;
+
+                // Generate game data
+                const encryptedScore = generateEncryptedScore(gameState.finalTime);
+                const formation = "3-6-3";
+                const zkProof = generateZKProof();
+                const nickname = `Player_${Date.now().toString().slice(-6)}`;
+                const rawScore = gameState.finalTime;
+
+                console.log('Saving game data:', {
+                    encryptedScore,
+                    formation,
+                    zkProof,
+                    nickname,
+                    rawScore,
+                    entryFee: blockchainState.entryFee
+                });
+
+                // Call smart contract
+                const tx = await blockchainState.contract.recordGame(
+                    encryptedScore,
+                    formation,
+                    zkProof,
+                    nickname,
+                    Math.floor(rawScore), // Convert to uint32
+                    {
+                        value: ethers.utils.parseEther(blockchainState.entryFee.toString()),
+                        gasLimit: 300000
+                    }
+                );
+
+                showToast('Transaction submitted! Waiting for confirmation...', 'warning');
+
+                // Wait for confirmation
+                const receipt = await tx.wait();
+                
+                showToast('Đã lưu thành công lên blockchain!', 'success');
+                updateGameStatus('finished', `Đã lưu blockchain! TX: ${receipt.transactionHash.slice(0, 10)}...`);
+
+                // Update balance
+                const balance = await blockchainState.provider.getBalance(blockchainState.account);
+                blockchainState.balance = parseFloat(ethers.utils.formatEther(balance));
+                updateWalletUI();
+
+                // Reload leaderboard
+                await loadContractData();
+
+                // Reset save button
+                document.getElementById('saveBtn').innerHTML = '✅ Đã lưu';
+                
+                setTimeout(() => {
+                    document.getElementById('saveBtn').innerHTML = '⛓️ Lưu lên Blockchain';
+                }, 3000);
+
+            } catch (error) {
+                console.error('Lỗi lưu blockchain:', error);
+                let errorMessage = 'Lỗi không xác định';
+                
+                if (error.code === 4001) {
+                    errorMessage = 'User từ chối transaction';
+                } else if (error.message.includes('insufficient funds')) {
+                    errorMessage = 'Không đủ ETH để trả phí gas';
+                } else if (error.message.includes('execution reverted')) {
+                    errorMessage = 'Contract lỗi - Kiểm tra entry fee';
+                } else {
+                    errorMessage = error.message.slice(0, 100);
+                }
+
+                showToast('Lỗi lưu blockchain: ' + errorMessage, 'error');
+                updateGameStatus('finished', `Lỗi lưu: ${errorMessage}`);
+
+                // Reset save button
+                document.getElementById('saveBtn').innerHTML = '⛓️ Lưu lên Blockchain';
+                document.getElementById('saveBtn').disabled = gameState.finalTime ? false : true;
+            }
+        }
+
+        // Utility Functions
+        function formatTime(milliseconds) {
+            const totalMs = Math.floor(milliseconds);
+            const minutes = Math.floor(totalMs / 60000);
+            const seconds = Math.floor((totalMs % 60000) / 1000);
+            const ms = Math.floor((totalMs % 1000) / 10);
+
+            return String(minutes).padStart(2, '0') + ':' +
+                   String(seconds).padStart(2, '0') + ':' +
+                   String(ms).padStart(2, '0');
+        }
+
+        function generateEncryptedScore(timeMs) {
+            // Simple encryption simulation - in production use real FHE
+            const base = timeMs.toString();
+            let encrypted = '0x';
+            for (let i = 0; i < 16; i++) {
+                encrypted += Math.floor(Math.random() * 16).toString(16);
+            }
+            return encrypted;
+        }
+
+        function generateZKProof() {
+            // Generate mock ZK proof
+            return 'zk_proof_' + Date.now().toString(16) + '_' + Math.random().toString(16).slice(2, 10);
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Auto-refresh leaderboard every 30 seconds
+        setInterval(async () => {
+            if (blockchainState.connected && blockchainState.contract) {
+                try {
+                    await loadLeaderboard();
+                    await loadGlobalRecord();
+                } catch (error) {
+                    console.error('Auto refresh error:', error);
+                }
+            }
+        }, 30000);
+
+    </script>
+</body>
+</html>
