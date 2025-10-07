@@ -4,21 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zama FHE Terminal - Đấu Giá Bảo Mật</title>
-    <!-- Thư viện Ethers.js -->
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
-    <!-- ⚡️ ZAMA FHE RELAYER SDK (Bản thật) ⚡️ -->
-    <script src="https://cdn.jsdelivr.net/npm/@zama-fhe/relayer-sdk@latest/dist/relayer-sdk.min.js"></script>
-    
-    <!-- Font Style -->
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
-        /* CSS Styles (Simplified for brevity, same as previous version) */
+        /* CSS Styles */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'VT323', monospace; background-color: #000000; color: #00ff00; min-height: 100vh; padding: 20px; font-size: 18px; }
         .container { max-width: 1000px; margin: 0 auto; }
         header { text-align: center; margin-bottom: 40px; animation: fadeIn 1s ease-out; }
         h1 { font-size: 3em; margin-bottom: 5px; text-shadow: 0 0 5px #00ff00, 0 0 15px rgba(0, 255, 0, 0.8); }
         .subtitle { font-size: 1.2em; opacity: 0.9; }
+
+        /* --- Product Layout Styles --- */
+        .product-layout { 
+            background-color: #050505; 
+            border: 2px solid #ffff00; 
+            padding: 25px; 
+            margin-bottom: 30px; 
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.4); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px;
+        }
+        .product-layout h2 {
+            font-size: 2em;
+            color: #ffff00;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .product-details {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .product-image-container {
+            flex-shrink: 0;
+            width: 200px;
+            height: 150px;
+            background: #111;
+            border: 1px solid #00ff00;
+            overflow: hidden;
+            position: relative;
+        }
+        .product-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.7; 
+        }
+        .product-info {
+            flex-grow: 1;
+            line-height: 1.4;
+        }
+        .product-info p {
+            margin-bottom: 8px;
+        }
+        .product-info strong {
+            color: #00ff00;
+        }
+        /* --- End Product Layout Styles --- */
+
         .main-grid { display: grid; grid-template-columns: 1fr; gap: 30px; margin-bottom: 30px; }
         .card { background-color: #000000; border: 2px solid #00ff00; padding: 25px; box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); animation: fadeInUp 1s ease-out; }
         .card h2 { margin-bottom: 20px; font-size: 1.8em; color: #ffff00; border-bottom: 1px dashed #00ff00; padding-bottom: 5px; display: flex; align-items: center; gap: 10px; }
@@ -56,7 +101,8 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .reveal-btn { background: #ff0000; color: #fff; border-color: #ff0000; }
         .reveal-btn:hover { background: #ff5555; box-shadow: 0 0 15px #ff0000; }
-        @media (min-width: 768px) { .main-grid { grid-template-columns: 2fr 3fr; } .tx-monitor { grid-column: 1 / 3; } }
+        @media (min-width: 768px) { .main-grid { grid-template-columns: 2fr 3fr; } .tx-monitor { grid-column: 1 / 3; } .product-details { flex-direction: row; } }
+        @media (max-width: 767px) { .product-details { flex-direction: column; } .product-image-container { width: 100%; height: 200px; } }
     </style>
 </head>
 <body>
@@ -66,21 +112,32 @@
             <p class="subtitle">Đấu giá bảo mật hoàn toàn đồng hình (FHE) - Sepolia Testnet Ready.</p>
         </header>
 
+        <div class="product-layout">
+            <h2>&gt; AUCTION ITEM: **CRYPTIC KEY**</h2>
+            <div class="product-details">
+                <div class="product-image-container">
+                    <img id="productImage" class="product-image" src="https://via.placeholder.com/400x300/000000/00ff00?text=FHE+CRYPTIC+KEY" alt="Sản phẩm đấu giá">
+                </div>
+                <div class="product-info">
+                    <p><strong>Mô tả:</strong> Chìa khóa vàng mã hóa. Vật phẩm này là token **NFT** duy nhất, trao quyền truy cập vào một hợp đồng bí mật trên chuỗi, có giá trị thị trường ước tính **20 ETH**.</p>
+                    <p><strong>Giá khởi điểm:</strong> 0.001 ETH.</p>
+                    <p><strong>Điều kiện:</strong> Giá thầu được mã hóa (**euint64** - Gwei) và phải vượt qua mọi đối thủ. Tiền thắng sẽ được chuyển đến **Beneficiary** sau khi giải mã.</p>
+                </div>
+            </div>
+        </div>
         <div class="main-grid">
-            <!-- Terminal 1: Wallet Connection -->
             <div class="card wallet-section">
                 <h2>> INIT WALLET SERVICE & FHE SDK</h2>
                 <div class="wallet-status" id="walletStatus">
                     <p class="log-line log-info">[STATUS] Wallet: DISCONNECTED</p>
                     <p class="log-line log-info">[INFO] Target Network: **Sepolia (11155111)**</p>
-                    <p class="log-line log-pending" id="fheStatus">[FHE SDK] Initializing Relayer Public Key...</p>
+                    <p class="log-line log-pending" id="fheStatus">[FHE SDK] Initializing FHE WASM files...</p>
                 </div>
-                <button id="connectBtn" onclick="connectWallet()">
+                <button id="connectBtn">
                     &gt; CONNECT & CHECK NETWORK
                 </button>
             </div>
 
-            <!-- Terminal 2: Auction State -->
             <div class="card">
                 <h2>> AUCTION DATA FEED (FHE PROTECTED)</h2>
                 <div class="auction-info">
@@ -101,16 +158,14 @@
                         <div class="info-value" id="timeLeft">--:--:--</div>
                     </div>
                 </div>
-                <!-- Nút Request Decrypt chỉ hiển thị khi đấu giá kết thúc -->
-                <button id="revealBtn" class="reveal-btn" onclick="requestDecryptResults()" disabled style="display: none;">
-                    &gt; REQUEST DECRYPT AUCTION WINNER & REFUND $
+                <button id="finalizeBtn" class="reveal-btn" disabled style="display: none;">
+                    &gt; REQUEST FINALIZE (OWNER ONLY)
                 </button>
             </div>
 
-            <!-- Terminal 3: Place Bid -->
             <div class="card" style="grid-column: 1 / -1;">
                 <h2>> FHE BID SUBMISSION</h2>
-                <label for="bidAmount" class="log-line">[INPUT] Enter Amount (ETH):</label>
+                <label for="bidAmount" class="log-line">[INPUT] Enter Amount (ETH) - Deposit:</label>
                 <input 
                     type="number" 
                     id="bidAmount" 
@@ -119,14 +174,13 @@
                     min="0"
                 >
                 <div class="encrypted-badge">
-                    <span>Sử dụng **@zama-fhe/relayer-sdk** để mã hóa **euint64** và tạo proof client-side.</span>
+                    <span>Sử dụng **@zama-fhe/relayer-sdk** để mã hóa **euint64** (Gwei) và tạo proof client-side.</span>
                 </div>
-                <button id="bidBtn" onclick="placeBid()" disabled>
+                <button id="bidBtn" disabled>
                     &gt; SUBMIT ENCRYPTED BID $ (Sepolia)
                 </button>
             </div>
-
-            <!-- Terminal 4: Live Transaction Monitor (Log) -->
+            
             <div class="card tx-monitor">
                 <h2>> LIVE TRANSACTION LOG <span class="fhe-badge">FHEVM</span></h2>
                 <div class="tx-container" id="txContainer">
@@ -136,18 +190,66 @@
             </div>
         </div>
     </div>
+    
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    
+    <script src="https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.umd.cjs"></script> 
 
-    <script>
+    <script defer>
         // --- ZAMA FHE SDK & CONFIGURATION ---
         
-        // Cần thay thế địa chỉ này bằng địa chỉ contract FHEAuction đã triển khai trên Sepolia FHEVM
+        // **!!! THAY THẾ BẰNG ĐỊA CHỈ HỢP ĐỒNG FHE Auction CỦA BẠN !!!**
         const CONTRACT_ADDRESS = '0x4140e9d65f5161c15843bd69413b691388230341'; 
         
-        // CẬP NHẬT ABI: Bao gồm các hàm public state, hàm requestDecryptMaxBid và events
-        const FHE_AUCTION_ABI = [{"inputs":[{"internalType":"uint256","name":"_durationInSeconds","type":"uint256"},{"internalType":"uint256","name":"_minDeposit","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"HandlesAlreadySavedForRequestID","type":"error"},{"inputs":[],"name":"InvalidKMSSignatures","type":"error"},{"inputs":[],"name":"InvalidShortString","type":"error"},{"inputs":[],"name":"NoHandleFoundForRequestID","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"winner","type":"address"},{"indexed":false,"internalType":"uint256","name":"finalDeposit","type":"uint256"}],"name":"AuctionFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"},{"indexed":false,"internalType":"bool","name":"isNewLeader","type":"bool"}],"name":"BidReceived","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"BidderWithdrew","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"requestId","type":"uint256"}],"name":"DecryptionRequested","type":"event"},{"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundIssued","type":"event"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"proof","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"emergencyCancel","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"finalizeAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getAuctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getCurrentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getCurrentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getMinBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isAuctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"bidder","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"manualRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"protocolId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"requestDecryptBidderBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"requestDecryptMaxBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newLeader","type":"address"},{"internalType":"uint256","name":"newDeposit","type":"uint256"}],"name":"updateLeaderAfterReveal","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"winningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawWinnings","outputs":[],"stateMutability":"nonpayable","type":"function"},{"stateMutability":"payable","type":"receive"}]
+        // ABI CỦA HỢP ĐỒNG FHEAuction ĐÃ HOÀN THIỆN (Được trích xuất từ contract Solidity của bạn)
+        const FHE_AUCTION_ABI = [
+            {"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+            {"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},
+            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"round","type":"uint256"}],"name":"EmergencyEnded","type":"event"},
+            {"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},
+            {"anonymous":false,"inputs":[],"name":"PausedByOwner","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundIssued","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},
+            {"anonymous":false,"inputs":[],"name":"UnpausedByOwner","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"}],"name":"BidReceived","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"requestId","type":"uint256"}],"name":"DecryptionRequested","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"address","name":"winner","type":"address"},{"internalType":"uint256","name":"finalBid","type":"uint256"}],"name":"AuctionFinished","type":"event"},
+            {"inputs":[],"name":"AUCTION_DURATION","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"EMERGENCY_DELAY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"auctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"beneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"proof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},
+            {"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"deposits","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"emergencyCancel","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"getAuctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getBeneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getCurrentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getCurrentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getMinBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getWinningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"isAuctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"pauserSet","outputs":[{"internalType":"contract IPauserSet","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"winningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"stateMutability":"payable","type":"receive"}
+        ];
 
-        // Cấu hình FHEVM Sepolia
         const SEPOLIA_CHAIN_ID = 11155111; 
+        const SEPOLIA_RPC = 'https://devnet.zama.ai/fhevm'; // RPC FHEVM Sepolia
+        const EIP712_DOMAIN_NAME = "FHEAuction";
+        const EIP712_DOMAIN_VERSION = "1";
         
         // Trạng thái chung
         let provider;
@@ -155,15 +257,12 @@
         let account;
         let fheAuctionContract;
         let fhevmInstance = null; 
-        let timerInterval; // Biến lưu trữ interval của đồng hồ đếm ngược
-        
-        // Trạng thái đấu giá 
-        let minDepositWei = ethers.BigNumber.from(0); 
+        let timerInterval; 
+        let minDepositWei; 
         let auctionEndTime = 0; 
-        let auctionFinalized = false;
+        let contractOwner = null; 
         
         // --- UTILITY FUNCTIONS ---
-
         function formatLogTime() {
             const date = new Date();
             return `[${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}]`;
@@ -189,35 +288,118 @@
             setTimeout(() => { notification.remove(); }, 4000);
         }
 
+        function updateActionButtons(endTime, finalized, owner) {
+            const now = Date.now();
+            const ended = now >= endTime;
+            const isOwner = account && owner && account.toLowerCase() === owner.toLowerCase();
+            
+            const bidBtn = document.getElementById('bidBtn');
+            const finalizeBtn = document.getElementById('finalizeBtn');
+
+            // 1. Nút BID
+            bidBtn.disabled = !account || !fhevmInstance || finalized || ended;
+            
+            // 2. Nút FINALIZE
+            if (isOwner) {
+                finalizeBtn.style.display = 'block';
+                if (ended && !finalized) {
+                    finalizeBtn.disabled = false;
+                    finalizeBtn.innerHTML = `&gt; REQUEST FINALIZE & REVEAL WINNER (OWNER ONLY)`;
+                } else if (finalized) {
+                    finalizeBtn.disabled = true;
+                    finalizeBtn.innerHTML = `&gt; AUCTION ROUND ${fheAuctionContract?.currentRound} FINALIZED`;
+                } else {
+                    finalizeBtn.disabled = true;
+                    finalizeBtn.innerHTML = `&gt; AWAIT END TIME (OWNER ONLY)`;
+                }
+            } else {
+                finalizeBtn.style.display = 'none'; 
+            }
+        }
+
+        // --- TIMER LOGIC ---
+        function startAuctionTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+
+            const timerElement = document.getElementById('timeLeft');
+
+            timerInterval = setInterval(async () => {
+                const now = Date.now();
+                const remaining = auctionEndTime - now;
+
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerElement.textContent = 'AUCTION CLOSED!';
+                    logMessage('[TIMER] Auction end time reached. Finalization can proceed.', 'info');
+                    
+                    if (fheAuctionContract && account) {
+                        try {
+                            const finalized = await fheAuctionContract.isAuctionFinalized();
+                            updateActionButtons(auctionEndTime, finalized, contractOwner);
+                        } catch (e) {
+                            console.error("Error updating buttons on end:", e);
+                        }
+                    }
+
+                } else {
+                    const totalSeconds = Math.floor(remaining / 1000);
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const seconds = totalSeconds % 60;
+
+                    timerElement.textContent = 
+                        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
         // --- FHE SDK INITIALIZATION ---
 
-        async function initFhevmSdk(currentProvider) {
-            // Cố gắng sử dụng tên global mới (ZamaFheRelayerSdk)
-            const ZamaFhe = window.ZamaFheRelayerSdk || window.ZamaFhe;
-
-            if (typeof ZamaFhe === 'undefined') {
-                logMessage('[ERROR] Zama SDK is not loaded. Check CDN link.', 'failed');
-                return null;
-            }
-
+        async function initFhevmSdk() {
             const fheStatus = document.getElementById('fheStatus');
+
             try {
-                fheStatus.textContent = '[FHE SDK] Fetching public key from FHE Relayer...';
-                
-                // SỬA LỖI CÚ PHÁP INIT: Sử dụng createInstance (chuẩn v0.9+)
-                const { createInstance, SepoliaConfig } = ZamaFhe;
-                const sdk = await createInstance(SepoliaConfig);
+                fheStatus.textContent = '[FHE SDK] Loading SDK (v0.2.0 ESM CDN)...';
+                const mod = await import('https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js');
+                const { initSDK, createInstance, SepoliaConfig } = mod;
+
+                fheStatus.textContent = '[FHE SDK] Initializing WASM (initSDK)...';
+                await initSDK(); 
+
+                fheStatus.textContent = '[FHE SDK] Creating FHE instance...';
+
+                const baseConfig = { ...SepoliaConfig, network: SEPOLIA_RPC, chainId: SEPOLIA_CHAIN_ID };
+
+                let sdkInstance = null;
+                try {
+                    sdkInstance = await createInstance(baseConfig);
+                } catch (err) {
+                    // Fallback to manual config (Recommended for stability on testnets)
+                    const manualConfig = {
+                        aclContractAddress: '0x687820221192C5B662b25367F70076A37bc79b6c',
+                        kmsContractAddress: '0x1364cBBf2DF5032C47d8226a6f6FBD2AFCDacAC',
+                        inputVerifierContractAddress: '0xbc91f3daD1A5F19F8390c400196e58073B6a0BC4',
+                        verifyingContractAddressDecryption: '0xb6E160B1ff80D67Bfe90A85eE06Ce0A2613607D1',
+                        verifyingContractAddressInputVerification: '0x7048C39f048125eDa9d678AEbaDfB22F7900a29F',
+                        chainId: SEPOLIA_CHAIN_ID,
+                        gatewayChainId: 55815,
+                        network: SEPOLIA_RPC,
+                        relayerUrl: 'https://relayer.testnet.zama.cloud',
+                    };
+                    sdkInstance = await createInstance(manualConfig);
+                }
 
                 fheStatus.textContent = '[FHE SDK] Public Key loaded. Ready for encryption.';
                 fheStatus.className = 'log-line log-confirmed';
                 logMessage('[FHE] SDK initialized successfully. Client-side encryption enabled.', 'confirmed');
-                return sdk;
+                return sdkInstance;
 
             } catch (error) {
                 console.error("FHE SDK Initialization failed:", error);
-                fheStatus.textContent = '[FHE SDK] FAILED to load public key. Check FHEVM RPC/Relayer.';
+                fheStatus.textContent = '[FHE SDK] FAILED. Check Relayer Service status or network connection.';
                 fheStatus.className = 'log-line log-failed';
-                return null;
+                logMessage(`[FATAL] FHE SDK Failed: ${error.message || error}`, 'failed');
+                throw new Error("FHE SDK failed to initialize. Cannot proceed.");
             }
         }
 
@@ -225,41 +407,41 @@
 
         async function getAuctionState() {
             try {
-                // Lấy thông tin trạng thái
-                const [minDeposit, endTime, leadBidder, leadDeposit, finalized, winningBidValue] = await Promise.all([
+                if (typeof ethers === 'undefined' || !fheAuctionContract) return;
+
+                minDepositWei = ethers.BigNumber.from(0); 
+
+                const [minDeposit, endTime, leadBidder, finalized, owner] = await Promise.all([
                     fheAuctionContract.getMinBidDeposit(),
                     fheAuctionContract.getAuctionEndTime(),
                     fheAuctionContract.getCurrentLeadBidder(),
-                    fheAuctionContract.getCurrentLeadDeposit(),
                     fheAuctionContract.isAuctionFinalized(),
-                    fheAuctionContract.winningBid()
+                    fheAuctionContract.owner(),
                 ]);
+                
+                contractOwner = owner; 
 
-                // 1. Cập nhật Min Deposit
                 minDepositWei = minDeposit;
                 const minDepositEth = ethers.utils.formatEther(minDeposit);
                 document.getElementById('minDepositValue').textContent = `${minDepositEth} ETH`;
 
-                // 2. Cập nhật Auction End Time
-                auctionEndTime = endTime.toNumber() * 1000; // Chuyển từ giây Unix sang mili giây JS
+                auctionEndTime = endTime.toNumber() * 1000;
                 
-                // 3. Cập nhật Lead Bidder
                 const bidderDisplay = leadBidder === ethers.constants.AddressZero 
                     ? '0x0000...' 
                     : `${leadBidder.substring(0, 6)}...`;
                 document.getElementById('leadBidder').textContent = bidderDisplay;
                 
-                // 4. Cập nhật Current Bid (Encrypted or Winning Bid if finalized)
                 if (finalized) {
+                    const winningBidValue = await fheAuctionContract.getWinningBid();
                     const winningBidEth = ethers.utils.formatEther(winningBidValue);
                     document.getElementById('currentBid').textContent = `${winningBidEth} ETH (WINNER)`;
                 } else {
                     document.getElementById('currentBid').textContent = 'ENCRYPTED';
                 }
 
-                auctionFinalized = finalized;
-
                 logMessage('[CONTRACT] Initial state loaded: Deposit, End Time, Lead Bidder, and Status.', 'info');
+                
                 return true;
             } catch (error) {
                 console.error("Failed to fetch auction state:", error);
@@ -270,54 +452,56 @@
 
         function listenToEvents() {
             if (!fheAuctionContract) return;
-
-            // 1. Lắng nghe BidReceived
-            fheAuctionContract.on("BidReceived", (bidder, depositAmount, isNewLeader, event) => {
+            
+            fheAuctionContract.removeAllListeners();
+            
+            fheAuctionContract.on("BidReceived", (bidder, round, depositAmount, event) => {
                 const bidderShort = bidder.substring(0, 6);
                 const depositEth = ethers.utils.formatEther(depositAmount);
-                
-                let message;
-                let type = 'info';
-
-                if (isNewLeader) {
-                    message = `[BID:NEW] New leader bid by ${bidderShort}... Amount: ${depositEth} ETH`;
-                    type = 'confirmed';
-                } else {
-                    message = `[BID:RECEIVED] Bid by ${bidderShort}... Amount: ${depositEth} ETH (not leader)`;
-                    type = 'pending';
-                }
-                logMessage(message, type);
-
-                // Cập nhật thông tin dẫn đầu
-                document.getElementById('leadBidder').textContent = `${bidderShort}...`;
+                logMessage(`[BID:RECEIVED] Round ${round}: Bid by ${bidderShort}... Deposit: ${depositEth} ETH`, 'info');
             });
 
-            // 2. Lắng nghe AuctionFinished
-            fheAuctionContract.on("AuctionFinished", async (winner, finalDeposit, event) => {
-                logMessage('[FINISH] AuctionFinished Event received from contract!', 'confirmed');
+            fheAuctionContract.on("DecryptionRequested", (requestId, event) => {
+                logMessage(`[DECRYPT] Decryption requested. Request ID: ${requestId}. Awaiting callback from KMS/Oracle...`, 'pending');
+            });
+
+            fheAuctionContract.on("AuctionFinished", async (round, winner, finalBid, event) => {
+                logMessage(`[FINISH] AuctionFinished Event received! Round ${round} completed.`, 'confirmed');
                 
-                // Final Deposit ở đây là giá trị plaintext đã được công bố trên chain
-                const finalDepositETH = ethers.utils.formatEther(finalDeposit);
+                const finalBidETH = ethers.utils.formatEther(finalBid);
                 const winnerAddress = winner;
                 
-                // 3. Update Public Display
-                document.getElementById('currentBid').textContent = `${finalDepositETH} ETH (WINNER)`;
+                document.getElementById('currentBid').textContent = `${finalBidETH} ETH (WINNER)`;
                 document.getElementById('leadBidder').textContent = winnerAddress.substring(0, 10) + '...';
                 
-                logMessage(`[SUCCESS] AUCTION FINALIZED! Winning deposit: ${finalDepositETH} ETH. Winner: ${winnerAddress}.`, 'confirmed');
-                showNotification(`AUCTION ENDED. Winner: ${winnerAddress.substring(0, 6)}... with ${finalDepositETH} ETH.`, 'success');
-
-                // Ngừng lắng nghe để tránh cập nhật thêm
-                fheAuctionContract.removeAllListeners("BidReceived");
-                fheAuctionContract.removeAllListeners("AuctionFinished");
+                logMessage(`[SUCCESS] AUCTION FINALIZED! Winning bid: ${finalBidETH} ETH. Winner: ${winnerAddress}.`, 'confirmed');
+                showNotification(`AUCTION ENDED. Winner: ${winnerAddress.substring(0, 6)}... with ${finalBidETH} ETH.`, 'success');
+                
+                await getAuctionState();
+                startAuctionTimer();
+                updateActionButtons(auctionEndTime, true, contractOwner);
+            });
+            
+            fheAuctionContract.on("RefundIssued", (recipient, amount, event) => {
+                const recipientShort = recipient.substring(0, 6);
+                const amountEth = ethers.utils.formatEther(amount);
+                logMessage(`[REFUND] ${recipientShort}... received refund: ${amountEth} ETH`, 'info');
             });
 
-            // 3. Lắng nghe DecryptionRequested
-            fheAuctionContract.on("DecryptionRequested", (requestId, event) => {
-                logMessage(`[DECRYPT] Decryption requested. Request ID: ${requestId}. Awaiting callback...`, 'pending');
+            fheAuctionContract.on("RoundStarted", async (round, endTime, event) => {
+                const endTimeDate = new Date(endTime.toNumber() * 1000).toLocaleString();
+                logMessage(`[NEW ROUND] Round ${round} started. Ends: ${endTimeDate}`, 'confirmed');
+                
+                await getAuctionState(); 
+                startAuctionTimer();
+                updateActionButtons(auctionEndTime, false, contractOwner);
+            });
+            
+            fheAuctionContract.on("EmergencyEnded", (round, event) => {
+                logMessage(`[EMERGENCY] Auction Round ${round} forcefully ended by owner/pauser. All deposits refunded.`, 'failed');
             });
 
-            logMessage('[EVENT] Event listeners registered for BidReceived, AuctionFinished, and DecryptionRequested.', 'info');
+            logMessage('[EVENT] Event listeners registered for all contract actions (Bid, Finalize, Refund, New Round).', 'info');
         }
 
         // --- WALLET & CONNECTION ---
@@ -341,40 +525,42 @@
                 const network = await provider.getNetwork();
 
                 if (network.chainId !== SEPOLIA_CHAIN_ID) {
-                    throw new Error("Wrong network. Please switch to Sepolia (11155111).");
+                    throw new Error("Wrong network. Please switch to Sepolia FHEVM.");
                 }
 
                 signer = provider.getSigner();
                 account = await signer.getAddress();
                 
-                fhevmInstance = await initFhevmSdk(provider);
-                if (!fhevmInstance) {
-                    throw new Error("FHE SDK failed to initialize. Cannot proceed.");
-                }
+                fhevmInstance = await initFhevmSdk();
 
                 fheAuctionContract = new ethers.Contract(
                     CONTRACT_ADDRESS, 
                     FHE_AUCTION_ABI, 
-                    signer
+                    signer 
                 );
                 
-                // ⚡️ LẤY TRẠNG THÁI BAN ĐẦU VÀ LẮNG NGHE ⚡️
                 await getAuctionState();
                 listenToEvents();
 
                 document.getElementById('walletStatus').innerHTML = `
                     <p class="log-line log-confirmed">[STATUS] Wallet: CONNECTED & READY</p>
-                    <p class="log-line">[ADDRESS] ${account.substring(0, 10)}...</p>
+                    <p class="log-line">[ADDRESS] ${account.substring(0, 10)}... ${account.toLowerCase() === contractOwner.toLowerCase() ? '(OWNER)' : ''}</p>
                     <p class="log-line">[NETWORK] **Sepolia FHEVM**</p>
                 `;
 
                 document.getElementById('connectBtn').textContent = '> CONNECTION ESTABLISHED (Sepolia)';
                 document.getElementById('connectBtn').disabled = true;
-                document.getElementById('bidBtn').disabled = false;
-
+                
                 showNotification('Connected to Sepolia. FHE interface ready.', 'success');
                 logMessage('[SUCCESS] Wallet, Network, and Contract OK. Ready to bid.', 'confirmed');
                 startAuctionTimer();
+
+                const finalized = await fheAuctionContract.isAuctionFinalized();
+                updateActionButtons(auctionEndTime, finalized, contractOwner); 
+
+                window.ethereum.on('accountsChanged', () => { window.location.reload(); });
+                window.ethereum.on('chainChanged', () => { window.location.reload(); });
+
             } catch (error) {
                 console.error(error);
                 const msg = error.message.includes('User rejected') ? 'User rejected connection/switch.' : error.message;
@@ -389,6 +575,7 @@
         async function placeBid() {
             const bidInput = document.getElementById('bidAmount');
             let bidAmountETH = parseFloat(bidInput.value);
+            const btn = document.getElementById('bidBtn');
             
             if (!fheAuctionContract || !account || !fhevmInstance) {
                 showNotification('Wallet/SDK not initialized. Connect wallet first.', 'error');
@@ -403,56 +590,56 @@
                 return;
             }
             
-            const bidAmountWei = ethers.utils.parseEther(bidAmountETH.toString());
+            // Deposit amount check
+            const depositAmountWei = ethers.utils.parseEther(bidAmountETH.toString()); 
             
-            // 1. Kiểm tra Min Deposit
-            if (bidAmountWei.lt(minDepositWei)) {
+            if (depositAmountWei.lt(minDepositWei)) {
                 showNotification(`Deposit must be at least ${ethers.utils.formatEther(minDepositWei)} ETH.`, 'error');
                 return;
             }
 
-            // Chuyển sang Gwei cho euint64 (chính xác hơn)
-            const bidAmountGwei = bidAmountWei.div(ethers.BigNumber.from(1e9)).toNumber();
+            // Convert ETH (Wei) to GWEI for euint64
+            const bidAmountGwei = depositAmountWei.div(ethers.BigNumber.from(1e9));
+            const MAX_EUINT64 = BigInt("18446744073709551615"); 
             
-            const MAX_EUINT64_GWEI = ethers.BigNumber.from("18446744073709551615");
-            if (ethers.BigNumber.from(bidAmountGwei).gt(MAX_EUINT64_GWEI)) {
-                   showNotification('Bid amount too high for euint64 Gwei representation.', 'error');
-                   return;
+            if (BigInt(bidAmountGwei.toString()) > MAX_EUINT64) {
+                showNotification('Bid amount too high for euint64 (Gwei) representation. Max ~18.44 ETH.', 'error'); 
+                return;
             }
 
-            const btn = document.getElementById('bidBtn');
             try {
                 
                 btn.innerHTML = '<span class="loading"></span> ENCRYPTING (SDK)...';
                 btn.disabled = true;
                 
-                logMessage(`[PROCESS] Initiating Zama SDK encryption for bid: ${bidAmountGwei} Gwei (**euint64**).`, 'info');
+                logMessage(`[PROCESS] Initiating Zama SDK encryption for bid: ${bidAmountGwei.toString()} Gwei (**euint64**).`, 'info');
 
-                // 2. ZAMA SDK: Sử dụng Encrypted Input Buffer để mã hóa euint64
+                // 1. Get Public Key and Sign EIP712
+                const { publicKey, signature } = await fhevmInstance.signPublicKey(signer, EIP712_DOMAIN_NAME, EIP712_DOMAIN_VERSION);
+                const publicKeyBytes32 = ethers.utils.hexlify(publicKey);
                 
-                // Khởi tạo Buffer để chứa các tham số mã hóa cho contract
-                // Cần CONTRACT_ADDRESS và địa chỉ account để lấy Public Key của người dùng
+                // 2. Encrypt the bid
                 const buffer = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
+                buffer.add64(BigInt(bidAmountGwei.toString())); 
 
-                // Thêm giá trị bid (euint64) vào buffer. Phải dùng BigInt cho add64.
-                buffer.add64(BigInt(bidAmountGwei));
-
-                // Thực hiện mã hóa và tạo Proof
-                const { encryptedValue: encryptedHandle, proof: proofBytes } = await buffer.encrypt();
+                const { handles, inputProof: proofBytes } = await buffer.encrypt();
+                const encryptedHandle = handles[0]; 
 
                 logMessage(`[FHE] Encryption complete. Handle: ${encryptedHandle.substring(0, 10)}... Proof generated.`, 'info');
 
-                // 3. Ethers: Submit Transaction
                 btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
                 
-                // Giao dịch gọi contract.bid(externalEuint64 encryptedHandle, bytes proof) và gửi kèm ETH (msg.value)
-                const tx = await fheAuctionContract.bid(encryptedHandle, proofBytes, {
-                    value: bidAmountWei // Gửi số ETH người dùng nhập làm ký quỹ (Wei)
-                }); 
+                // 3. Call bid function
+                const tx = await fheAuctionContract.bid(
+                    encryptedHandle, 
+                    proofBytes, 
+                    publicKeyBytes32, 
+                    signature,
+                    { value: depositAmountWei } 
+                ); 
                 
                 logMessage(`[TX] Sending encrypted bid transaction. Hash: ${tx.hash.substring(0, 10)}...`, 'pending');
 
-                // Chờ xác nhận giao dịch
                 const receipt = await tx.wait(); 
                 
                 logMessage(`[SUCCESS] TX ${receipt.transactionHash.substring(0, 10)}... confirmed. FHE computation passed on-chain.`, 'confirmed');
@@ -466,86 +653,59 @@
                 logMessage(`[FATAL] Transaction failed: ${msg}`, 'failed');
             } finally {
                 btn.innerHTML = '> SUBMIT ENCRYPTED BID $ (Sepolia)';
-                if (document.getElementById('connectBtn').disabled && Date.now() < auctionEndTime) {
-                    btn.disabled = false; 
-                }
+                const finalized = await fheAuctionContract.isAuctionFinalized();
+                updateActionButtons(auctionEndTime, finalized, contractOwner);
             }
         }
         
-        // --- DECRYPT LOGIC (Contract Call) ---
-
-        async function requestDecryptResults() {
-            if (!account || !fheAuctionContract) {
-                showNotification('Wallet or contract not initialized.', 'error');
+        // --- FINALIZATION LOGIC (OWNER ONLY) ---
+        
+        async function requestFinalizeAuction() {
+            if (!fheAuctionContract || !account) {
+                showNotification('Wallet not connected.', 'error');
                 return;
             }
-            logMessage('[DECRYPT] Auction ended. Initiating contract DECRYPT REQUEST...', 'info');
+            if (Date.now() < auctionEndTime) {
+                showNotification('Auction is still running.', 'error');
+                return;
+            }
             
-            const btn = document.getElementById('revealBtn');
-            btn.innerHTML = '<span class="loading"></span> REQUESTING DECRYPT...';
-            btn.disabled = true;
-
+            const btn = document.getElementById('finalizeBtn');
             try {
-                // 1. Gọi hàm requestDecryptMaxBid() trên contract (chỉ owner)
-                const tx = await fheAuctionContract.requestDecryptMaxBid();
-                logMessage(`[TX] Sending DECRYPT REQUEST transaction. Hash: ${tx.hash.substring(0, 10)}...`, 'pending');
+                btn.innerHTML = '<span class="loading"></span> REQUEST DECRYPT/FINALIZE...';
+                btn.disabled = true;
 
-                await tx.wait(); 
+                logMessage('[PROCESS] Attempting to request finalization and decryption...', 'pending');
                 
-                logMessage(`[SUCCESS] DECRYPT REQUEST TX confirmed. Waiting for DecryptionRequested event and callback...`, 'confirmed');
-                showNotification('Decrypt request confirmed. Waiting for relayer callback and AuctionFinished event.', 'info');
+                // Call the single requestFinalize function
+                const tx = await fheAuctionContract.requestFinalize();
+                
+                logMessage(`[TX:FINALIZE] Sending requestFinalize transaction. Hash: ${tx.hash.substring(0, 10)}...`, 'pending');
 
-                // Logic lắng nghe sự kiện AuctionFinished sẽ xử lý phần còn lại.
-
+                const receipt = await tx.wait(); 
+                
+                logMessage(`[PENDING] Finalize Request TX confirmed. Waiting for Oracle callback (onDecryptionCallback) to process winners/refunds...`, 'pending');
+                showNotification('Finalization Requested. Waiting for Oracle/KMS to process.', 'info');
+                
             } catch (error) {
-                console.error("Decrypt Request Failed:", error);
-                const msg = error.reason || error.message || 'Decrypt Request Failed';
-                logMessage(`[FATAL] Decrypt request failed: ${msg}`, 'failed');
-                showNotification(`DECRYPT REQUEST FAILED: ${msg}`, 'error');
+                console.error("Finalize Failed:", error);
+                const msg = error.reason || error.message || 'Finalization Failed';
+                showNotification(`TX FAILED: ${msg}`, 'error');
+                logMessage(`[FATAL] Finalize failed: ${msg}`, 'failed');
             } finally {
-                btn.innerHTML = '> REQUEST DECRYPT AUCTION WINNER & REFUND $';
-                btn.disabled = false;
+                // Keep disabled, waiting for AuctionFinished event to re-enable
+                btn.innerHTML = `&gt; AWAIT ORACLE CALLBACK...`;
+                btn.disabled = true;
             }
         }
-
-        // --- TIMER & LIVE FEED ---
-
-        function startAuctionTimer() {
-            const timerElement = document.getElementById('timeLeft');
-            
-            if (timerInterval) { clearInterval(timerInterval); } // Xóa interval cũ
-
-            timerInterval = setInterval(() => {
-                const remaining = auctionEndTime - Date.now();
-                
-                if (remaining <= 0) {
-                    timerElement.textContent = 'AUCTION CLOSED!';
-                    clearInterval(timerInterval);
-                    document.getElementById('bidBtn').style.display = 'none';
-                    document.getElementById('revealBtn').style.display = 'block';
-                    document.getElementById('revealBtn').disabled = false;
-
-                    // Nếu đấu giá kết thúc, khuyến khích người dùng gọi decrypt request (nếu owner)
-                    logMessage('[ALERT] Auction has ended. Owner: Call REQUEST DECRYPT to finalize results and initiate refunds.', 'info');
-                    return;
-                }
-                
-                const hours = Math.floor(remaining / 3600000);
-                const minutes = Math.floor((remaining % 3600000) / 60000);
-                const seconds = Math.floor((remaining % 60000) / 1000);
-                
-                timerElement.textContent = 
-                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }, 1000);
-        }
         
-        // Initialize on load
-        window.addEventListener('load', () => {
-            logMessage('[INFO] Zama SDK CDN loaded. Awaiting MetaMask connection.', 'info');
-            // Bắt đầu timer tạm thời cho đến khi kết nối và lấy thời gian thực từ contract
-            auctionEndTime = Date.now() + 30000; // 30 giây tạm thời
-            startAuctionTimer();
+        // --- EVENT LISTENERS INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('connectBtn').addEventListener('click', connectWallet);
+            document.getElementById('bidBtn').addEventListener('click', placeBid);
+            document.getElementById('finalizeBtn').addEventListener('click', requestFinalizeAuction); 
         });
+
     </script>
 </body>
 </html>
