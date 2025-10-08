@@ -109,19 +109,19 @@
     <div class="container">
         <header>
             <h1>[SYSTEM ONLINE] ZAMA FHE AUCTION $</h1>
-            <p class="subtitle">Đấu giá bảo mật hoàn toàn đồng hình (FHE) - Sepolia Testnet Ready.</p>
+            <p class="subtitle">Fully Homomorphic Encryption (FHE) Secure Auction - Sepolia Testnet Ready.</p>
         </header>
 
         <div class="product-layout">
             <h2>&gt; AUCTION ITEM: **CRYPTIC KEY**</h2>
             <div class="product-details">
                 <div class="product-image-container">
-                    <img id="productImage" class="product-image" src="https://via.placeholder.com/400x300/000000/00ff00?text=FHE+CRYPTIC+KEY" alt="Sản phẩm đấu giá">
+                    <img id="productImage" class="product-image" src="https://github.com/Quangx199x/SYSTEM-ONLINE---ZAMA-FHE-AUCTION/blob/main/key.jpeg" alt="Sản phẩm đấu giá">
                 </div>
                 <div class="product-info">
-                    <p><strong>Mô tả:</strong> Chìa khóa vàng mã hóa. Vật phẩm này là token **NFT** duy nhất, trao quyền truy cập vào một hợp đồng bí mật trên chuỗi, có giá trị thị trường ước tính **20 ETH**.</p>
-                    <p><strong>Giá khởi điểm:</strong> 0.001 ETH.</p>
-                    <p><strong>Điều kiện:</strong> Giá thầu được mã hóa (**euint64** - Gwei) và phải vượt qua mọi đối thủ. Tiền thắng sẽ được chuyển đến **Beneficiary** sau khi giải mã.</p>
+                    <p><strong>Description:</strong> Encrypted Golden Key. This item is the unique NFT token, granting access to a secret on-chain contract, with an estimated market value of 20 ETH.**.</p>
+                    <p><strong>Starting price:</strong> 0.001 ETH.</p>
+                    <p><strong>Conditions: The bid is encrypted (euint64 - Gwei) and must surpass all competitors. The winning funds will be transferred to the Beneficiary after decryption.</p>
                 </div>
             </div>
         </div>
@@ -174,7 +174,7 @@
                     min="0"
                 >
                 <div class="encrypted-badge">
-                    <span>Sử dụng **@zama-fhe/relayer-sdk** để mã hóa **euint64** (Gwei) và tạo proof client-side.</span>
+                    <span>Use @zama-fhe/relayer-sdk to encrypt euint64 (Gwei) and generate client-side proof.</span>
                 </div>
                 <button id="bidBtn" disabled>
                     &gt; SUBMIT ENCRYPTED BID $ (Sepolia)
@@ -198,53 +198,74 @@
     <script defer>
         // --- ZAMA FHE SDK & CONFIGURATION ---
         
-        // **!!! THAY THẾ BẰNG ĐỊA CHỈ HỢP ĐỒNG FHE Auction CỦA BẠN !!!**
-        const CONTRACT_ADDRESS = '0x4140e9d65f5161c15843bd69413b691388230341'; 
+        // **!!! REPLACE THIS WITH YOUR FHE Auction CONTRACT ADDRESS!!!**
+        const CONTRACT_ADDRESS = '0x76044483b2387720EA449243Eb3d1eE1f5c86fbE'; 
         
-        // ABI CỦA HỢP ĐỒNG FHEAuction ĐÃ HOÀN THIỆN (Được trích xuất từ contract Solidity của bạn)
-        const FHE_AUCTION_ABI = [
-            {"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
-            {"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},
-            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"round","type":"uint256"}],"name":"EmergencyEnded","type":"event"},
-            {"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},
-            {"anonymous":false,"inputs":[],"name":"PausedByOwner","type":"event"},
-            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundIssued","type":"event"},
-            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},
-            {"anonymous":false,"inputs":[],"name":"UnpausedByOwner","type":"event"},
-            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"}],"name":"BidReceived","type":"event"},
-            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"requestId","type":"uint256"}],"name":"DecryptionRequested","type":"event"},
-            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"address","name":"winner","type":"address"},{"internalType":"uint256","name":"finalBid","type":"uint256"}],"name":"AuctionFinished","type":"event"},
-            {"inputs":[],"name":"AUCTION_DURATION","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"EMERGENCY_DELAY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"auctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"beneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"proof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},
-            {"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"deposits","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"emergencyCancel","outputs":[],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[],"name":"getAuctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"getBeneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"getCurrentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"getCurrentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"getMinBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"getWinningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"isAuctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"pauserSet","outputs":[{"internalType":"contract IPauserSet","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[],"name":"winningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"stateMutability":"payable","type":"receive"}
-        ];
+        // COMPLETED FHEAUCTION CONTRACT ABI (Extracted from your Solidity contract)
+        const FHE_AUCTION_ABI = [{"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},
+		{"internalType":"address","name":"_pauserSet","type":"address"},
+		{"internalType":"address","name":"_beneficiary","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+		{"inputs":[],"name":"ECDSAInvalidSignature","type":"error"},
+		{"inputs":[{"internalType":"uint256","name":"length","type":"uint256"}],"name":"ECDSAInvalidSignatureLength","type":"error"},
+		{"inputs":[{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"ECDSAInvalidSignatureS","type":"error"},
+		{"inputs":[],"name":"HandlesAlreadySavedForRequestID","type":"error"},
+		{"inputs":[],"name":"InvalidKMSSignatures","type":"error"},
+		{"inputs":[],"name":"InvalidShortString","type":"error"},
+		{"inputs":[],"name":"NoHandleFoundForRequestID","type":"error"},
+		{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},
+		{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},
+		{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},
+		{"indexed":false,"internalType":"address","name":"winner","type":"address"},
+		{"indexed":false,"internalType":"uint256","name":"finalBid","type":"uint256"}],"name":"AuctionFinished","type":"event"},
+		{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},
+		{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},
+		{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"}],"name":"BidReceived","type":"event"},
+		{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},
+		{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"requestId","type":"uint256"}],"name":"DecryptionRequested","type":"event"},
+		{"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},
+		{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"}],"name":"EmergencyEnded","type":"event"},
+		{"anonymous":false,"inputs":[],"name":"PausedByOwner","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},
+		{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundIssued","type":"event"},
+		{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},
+		{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},
+		{"anonymous":false,"inputs":[],"name":"UnpausedByOwner","type":"event"},{"stateMutability":"payable","type":"fallback"},
+		{"inputs":[],"name":"AUCTION_DURATION","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"EMERGENCY_DELAY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"auctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"beneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"proof","type":"bytes"},
+		{"internalType":"bytes32","name":"publicKey","type":"bytes32"},
+		{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},
+		{"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"deposits","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},
+		{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},
+		{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},
+		{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"emergencyCancel","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"getAuctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"getBeneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"getCurrentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"getCurrentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"getMinBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"getWinningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"isAuctionFinalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},
+		{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"pauserSet","outputs":[{"internalType":"contract IPauserSet","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"protocolId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+		{"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"winningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"stateMutability":"payable","type":"receive"}
+		];
 
         const SEPOLIA_CHAIN_ID = 11155111; 
         const SEPOLIA_RPC = 'https://devnet.zama.ai/fhevm'; // RPC FHEVM Sepolia
