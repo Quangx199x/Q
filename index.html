@@ -606,10 +606,6 @@
                 console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
                 console.log('DEBUG - Proof length:', proof.length);
                 console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
-				console.log("encryptedBid:", encryptedData.handles[0]);
-				console.log("inputProof:", encryptedData.inputProof);
-				console.log("signature:", signature);
-
                 
                 // Generate EIP-712 signature
                 btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
