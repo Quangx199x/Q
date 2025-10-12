@@ -643,12 +643,23 @@
                 
                 const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
                 
+                console.log('DEBUG - Transaction params:');
+                console.log('  encryptedBid:', encryptedBidBytes32);
+                console.log('  proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
+                console.log('  publicKey:', publicKey.publicKey || publicKey);
+                console.log('  signature:', signature);
+                console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
+                
+                // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
                 const tx = await fheAuctionContract.bid(
-                    encryptedBid,
-                    proof,
-                    encryptedBid,
-                    signature,
-                    { value: depositWei }
+                    encryptedBidBytes32,           // bytes32 - encrypted handle
+                    proof,                          // bytes - ZK proof
+                    publicKey.publicKey || publicKey, // bytes32 - FHE public key
+                    signature,                      // bytes - EIP-712 signature
+                    { 
+                        value: depositWei,
+                        gasLimit: 500000 // Set manual gas limit để bypass estimation
+                    }
                 );
                 
                 logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
