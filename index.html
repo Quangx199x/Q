@@ -593,7 +593,9 @@
                 // Relayer SDK returns handles as hex strings
                 const encryptedBid = encryptedData.handles[0];
                 const proof = encryptedData.inputProof;
-                
+                console.log("---------- FHE AUCTION DEBUG VALUES ----------");
+                console.log("1. encryptedData.handles[0]:", encryptedBid);
+                console.log("2. encryptedData.inputProof (Hex):", ethers.utils.hexlify(proof));
                 // Ensure encryptedBid is bytes32 format
                 const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
                     ? encryptedBid 
@@ -637,7 +639,11 @@
                 
                 const signature = await signer._signTypedData(domain, types, value);
                 logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
+                console.log("3. publicKeyToSign:", publicKeyToSign);
+                console.log("4. signature:", signature);
+                console.log("--------------------------------------------");
                 console.log('DEBUG - Signature:', signature);
+                
                 
                 // Submit transaction
                 btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
