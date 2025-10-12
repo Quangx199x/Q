@@ -75,7 +75,6 @@
         .notification.success { border-color: #00ff00; color: #00ff00; }
         .notification.error { border-color: #ff0000; color: #ff0000; }
         .notification.info { border-color: #ffff00; color: #ffff00; }
-        .notification.warning { border-color: #ffaa00; color: #ffaa00; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         
         .loading { display: inline-block; width: 1em; height: 1em; border: 0.15em solid rgba(0, 255, 0, 0.3); border-radius: 50%; border-top-color: #00ff00; animation: spin 1s linear infinite; margin-right: 8px; }
@@ -86,8 +85,6 @@
         .bidder-item:last-child { border-bottom: none; }
         
         .refund-indicator { background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; padding: 10px; margin-top: 10px; border-radius: 3px; }
-        
-        .retry-section { margin-top: 10px; }
         
         @media (max-width: 768px) {
             .main-grid { grid-template-columns: 1fr; }
@@ -119,11 +116,6 @@
                 <button id="connectBtn">
                     &gt; CONNECT WALLET & INIT FHE SDK
                 </button>
-                <div class="retry-section" id="retryFHESection" style="display: none;">
-                    <button id="retryFHEBtn" class="btn-warning">
-                        &gt; RETRY FHE RELAYER INIT
-                    </button>
-                </div>
             </div>
 
             <!-- Auction Info -->
@@ -156,12 +148,12 @@
             <!-- Place Bid -->
             <div class="card">
                 <h2>💰 SUBMIT ENCRYPTED BID <span class="fhe-badge">FHE</span></h2>
-                <label for="bidAmount" class="log-line">[INPUT] Bid Amount (Wei):</label>
+                <label for="bidAmount" class="log-line">[INPUT] Bid Amount (ETH):</label>
                 <input 
                     type="number" 
                     id="bidAmount" 
-                    placeholder="Amount in Wei (euint64)" 
-                    step="1"
+                    placeholder="Amount in ETH (will convert to Gwei)" 
+                    step="0.000000001"
                     min="0"
                 >
                 <label for="depositAmount" class="log-line">[INPUT] Deposit Amount (ETH):</label>
@@ -261,7 +253,7 @@
         </div>
     </div>
     
-    <!-- Ethers.js v5 -->
+    <!-- Ethers.js -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     
     <!-- Zama Relayer SDK -->
@@ -281,7 +273,7 @@
         let timerInterval;
         let isOwner = false;
         
-        // Full ABI (unchanged)
+        // Full ABI
         const FHE_AUCTION_ABI = [{"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"},{"internalType":"address","name":"_gatewayContract","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AuctionAlreadyFinalized","type":"error"},{"inputs":[],"name":"AuctionNotActive","type":"error"},{"inputs":[],"name":"AuctionStillActive","type":"error"},{"inputs":[],"name":"ContractPaused","type":"error"},{"inputs":[],"name":"DecryptionAlreadyPending","type":"error"},{"inputs":[],"name":"EmergencyDelayNotMet","type":"error"},{"inputs":[],"name":"InsufficientDeposit","type":"error"},{"inputs":[],"name":"InvalidAddress","type":"error"},{"inputs":[],"name":"InvalidAmount","type":"error"},{"inputs":[],"name":"InvalidDecryptionData","type":"error"},{"inputs":[],"name":"InvalidShortString","type":"error"},{"inputs":[],"name":"InvalidSignature","type":"error"},{"inputs":[],"name":"InvalidState","type":"error"},{"inputs":[],"name":"MaxBiddersReached","type":"error"},{"inputs":[],"name":"NoBidders","type":"error"},{"inputs":[],"name":"NoRefundAvailable","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"inputs":[],"name":"Unauthorized","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"BidReceived","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":true,"internalType":"address","name":"winner","type":"address"},{"indexed":false,"internalType":"uint256","name":"finalBid","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"AuctionFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"requestId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"},{"indexed":false,"internalType":"bytes32[]","name":"handles","type":"bytes32[]"}],"name":"DecryptionRequested","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundAvailable","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"string","name":"reason","type":"string"}],"name":"EmergencyActivated","type":"event"},{"anonymous":false,"inputs":[{"internalType":"enum FHEAuction.AuctionState","name":"from","type":"uint8"},{"internalType":"enum FHEAuction.AuctionState","name":"to","type":"uint8"}],"name":"StateChanged","type":"event"},{"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"inputProof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address[]","name":"claimants","type":"address[]"}],"name":"batchClaimRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"forceFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newBeneficiary","type":"address"}],"name":"updateBeneficiary","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getAuctionInfo","outputs":[{"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum FHEAuction.AuctionState","name":"state","type":"uint8"},{"internalType":"uint256","name":"maxDeposit","type":"uint256"},{"internalType":"address","name":"leadBidder","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"getBidderInfo","outputs":[{"internalType":"uint256","name":"deposit","type":"uint256"},{"internalType":"bool","name":"hasBidded","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getRoundBidders","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"pendingRefunds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionState","outputs":[{"internalType":"enum FHEAuction.AuctionState","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}];
         
         // ========== UTILITY FUNCTIONS ==========
@@ -307,23 +299,22 @@
             setTimeout(() => notif.remove(), 5000);
         }
         
-        // ========== FHE SDK INITIALIZATION (GIỮ NGUYÊN CẤU TRÚC, CHỈ THÊM RETRY & ERROR HANDLING) ==========
-        async function initFhevmSdk(retryCount = 0) {
+        // ========== FHE SDK INITIALIZATION ==========
+        async function initFhevmSdk() {
             const fheStatus = document.getElementById('fheStatus');
             const relayerStatus = document.getElementById('relayerStatus');
-            const maxRetries = 3;
             
             try {
                 fheStatus.textContent = '[FHE] Loading SDK WASM...';
                 fheStatus.className = 'log-line log-pending';
                 logMessage('[SDK] Initializing Zama Relayer SDK v0.2.0...', 'info');
                 
-                // Step 1: Initialize SDK WASM (giữ nguyên)
+                // Step 1: Initialize SDK WASM
                 await initSDK();
                 fheStatus.textContent = '[FHE] SDK WASM initialized ✓';
                 logMessage('[SDK] WASM modules loaded successfully', 'confirmed');
                 
-                // Step 2: Create FHE instance with Sepolia config (giữ nguyên, chỉ override ACL/KMS cho v0.9 stability)
+                // Step 2: Create FHE instance with Sepolia config
                 fheStatus.textContent = '[FHE] Creating instance with Sepolia config...';
                 relayerStatus.textContent = '[RELAYER] Connecting to relayer.testnet.zama.cloud...';
                 relayerStatus.className = 'log-line log-pending';
@@ -332,10 +323,7 @@
                     ...SepoliaConfig,
                     network: SEPOLIA_RPC,
                     chainId: SEPOLIA_CHAIN_ID,
-                    relayerUrl: RELAYER_URL,
-                    // Override với ACL/KMS addresses updated post-migration v0.9 (Oct 2025)
-                    aclContractAddress: '0x687820221192C5B662b25367F70076A37bc79b6c', // Updated Sepolia ACL
-                    kmsContractAddress: '0x1364cBBf2cDF5032C47d8226a6f6FBD2AFCDacAC'   // Updated Sepolia KMS
+                    relayerUrl: RELAYER_URL
                 };
                 
                 logMessage(`[CONFIG] ACL: ${config.aclContractAddress}`, 'info');
@@ -344,7 +332,7 @@
                 
                 const instance = await createInstance(config);
                 
-                // Step 3: Verify instance is ready (giữ nguyên)
+                // Step 3: Verify instance is ready
                 fheStatus.textContent = '[FHE] Public key loaded ✓';
                 fheStatus.className = 'log-line log-confirmed';
                 relayerStatus.textContent = '[RELAYER] Connected ✓';
@@ -354,9 +342,6 @@
                 logMessage('[RELAYER] Connection established', 'confirmed');
                 showNotification('FHE SDK initialized successfully!', 'success');
                 
-                // Ẩn retry button
-                document.getElementById('retryFHESection').style.display = 'none';
-                
                 return instance;
                 
             } catch (error) {
@@ -365,30 +350,8 @@
                 fheStatus.className = 'log-line log-failed';
                 relayerStatus.textContent = '[RELAYER] FAILED ✗';
                 relayerStatus.className = 'log-line log-failed';
-                
-                let errorMsg = error.message;
-                if (errorMsg.includes('request failed') || errorMsg.includes('network') || errorMsg.includes('timeout')) {
-                    errorMsg = 'Relayer connection failed (possible migration issue). Retrying...';
-                    logMessage(`[ERROR] Relayer fail: ${errorMsg}`, 'warning');
-                    showNotification('Relayer temp issue. Retry button available.', 'warning');
-                    
-                    // Hiển thị retry button nếu chưa max retries
-                    if (retryCount < maxRetries) {
-                        document.getElementById('retryFHESection').style.display = 'block';
-                    }
-                } else {
-                    logMessage(`[ERROR] FHE SDK init failed: ${errorMsg}`, 'failed');
-                    showNotification(`FHE SDK failed: ${errorMsg}`, 'error');
-                }
-                
-                // Retry logic (tự động nếu < max)
-                if (retryCount < maxRetries) {
-                    logMessage(`[RETRY] Attempt ${retryCount + 1}/${maxRetries} in 5s...`, 'pending');
-                    setTimeout(() => initFhevmSdk(retryCount + 1), 5000);
-                } else {
-                    logMessage('[RETRY] Max retries reached. Use manual retry button.', 'warning');
-                }
-                
+                logMessage(`[ERROR] FHE SDK init failed: ${error.message}`, 'failed');
+                showNotification('FHE SDK initialization failed', 'error');
                 throw error;
             }
         }
@@ -558,7 +521,7 @@
                 
                 logMessage(`[WALLET] Connected: ${account.substring(0, 10)}...`, 'confirmed');
                 
-                // Initialize FHE SDK (giữ nguyên gọi, chỉ thêm retry nếu fail)
+                // Initialize FHE SDK
                 fhevmInstance = await initFhevmSdk();
                 
                 // Setup contract
@@ -599,21 +562,24 @@
         
         // ========== PLACE BID ==========
         async function placeBid() {
-            const bidAmountWei = BigInt(document.getElementById('bidAmount').value);
+            const bidAmountETH = parseFloat(document.getElementById('bidAmount').value);
             const depositAmountETH = parseFloat(document.getElementById('depositAmount').value);
-            
-            if (bidAmountWei <= 0n) {
-                showNotification('Invalid bid amount (must be >0 Wei)', 'error');
+
+            if (isNaN(bidAmountETH) || bidAmountETH <= 0) {
+                showNotification('Invalid bid amount', 'error');
                 return;
             }
+
+            // Convert ETH to Gwei for FHE encryption
+            const bidAmountGwei = Math.floor(bidAmountETH * 1e9);
             
-            if (isNaN(depositAmountETH) || depositAmountETH < 0.01) {
-                showNotification('Invalid deposit amount (min 0.01 ETH)', 'error');
+            if (bidAmountGwei <= 0 || bidAmountGwei >= Number.MAX_SAFE_INTEGER) {
+                showNotification('Bid amount out of range', 'error');
                 return;
             }
-            
-            if (bidAmountWei >= (18n * 10n**18n)) {
-                showNotification('Bid too large for euint64 (max ~18 ETH)', 'error');
+
+            if (isNaN(depositAmountETH) || depositAmountETH <= 0) {
+                showNotification('Invalid deposit amount', 'error');
                 return;
             }
             
@@ -622,120 +588,126 @@
             try {
                 btn.innerHTML = '<span class="loading"></span> ENCRYPTING...';
                 btn.disabled = true;
-                
-                logMessage(`[BID] Encrypting ${bidAmountWei} Wei with FHE SDK...`, 'info');
-                
-                // Create encrypted input using Relayer SDK
-                const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
-                input.add64(bidAmountWei);
-                
-                logMessage('[FHE] Generating ZK proof...', 'pending');
-                const encryptedData = await input.encrypt();
-                
-                // Relayer SDK returns handles as hex strings
-                const encryptedBid = encryptedData.handles[0];
-                const proof = encryptedData.inputProof;
-                
-                // Ensure encryptedBid is bytes32 format
-                const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
-                    ? encryptedBid 
-                    : ethers.utils.hexlify(encryptedBid);
-                
-                // Convert to string để log (handles có thể là bytes32 hoặc hex string)
-                const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
-                logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 20) + '...', 'confirmed');
-                
-                console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
-                console.log('DEBUG - Proof length:', proof.length);
-                console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
-                
-                // Generate EIP-712 signature
-                btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
-                logMessage('[EIP-712] Requesting signature for encrypted bid...', 'pending');
-                
-                // According to contract, we sign the encryptedBid itself as publicKey
-                // This is the "public key" that was used to encrypt (for verification)
-                const publicKeyToSign = encryptedBidBytes32;
-                
-                console.log('DEBUG - Public Key to sign:', publicKeyToSign, 'Length:', publicKeyToSign.length);
-                
-                const domain = {
-                    name: 'FHEAuction',
-                    version: '1',
-                    chainId: SEPOLIA_CHAIN_ID,
-                    verifyingContract: CONTRACT_ADDRESS
-                };
-                
-                const types = {
-                    PublicKey: [
-                        { name: 'key', type: 'bytes32' }
-                    ]
-                };
-                
-                // Sign the encrypted bid as "public key" parameter
-                const value = {
-                    key: publicKeyToSign
-                };
-                
-                const signature = await signer._signTypedData(domain, types, value);
-                logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
-                console.log('DEBUG - Signature:', signature);
-                
-                // Submit transaction
-                btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
-                logMessage('[TX] Sending encrypted bid to contract...', 'pending');
-                
-                const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
-                
-                console.log('DEBUG - Transaction params:');
-                console.log('  encryptedBid:', encryptedBidBytes32, '(length:', encryptedBidBytes32.length, ')');
-                console.log('  proof length:', proof.length);
-                console.log('  publicKey (same as encryptedBid):', publicKeyToSign, '(length:', publicKeyToSign.length, ')');
-                console.log('  signature:', signature, '(length:', signature.length, ')');
-                console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
-                
-                // Validate lengths before sending
-                if (encryptedBidBytes32.length !== 66) {
-                    throw new Error(`Invalid encryptedBid length: ${encryptedBidBytes32.length}, expected 66 (0x + 64 hex chars)`);
-                }
-                
-                // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
-                const tx = await fheAuctionContract.bid(
-                    encryptedBidBytes32,           // bytes32 - encrypted handle
-                    proof,                          // bytes - ZK proof
-                    publicKeyToSign,                // bytes32 - same as encryptedBid (for EIP-712 verification)
-                    signature,                      // bytes - EIP-712 signature
-                    { 
-                        value: depositWei,
-                        gasLimit: 500000 // Set manual gas limit để bypass estimation
+
+                logMessage(`[BID] Converting ${bidAmountETH} ETH to ${bidAmountGwei} Gwei...`, 'info');
+                logMessage(`[BID] Encrypting ${bidAmountGwei} Gwei with FHE SDK...`, 'info');
+
+                // Add error handling for encryption
+                try {
+                    const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
+                    if (!input) throw new Error('Failed to create encrypted input');
+                    
+                    input.add64(BigInt(bidAmountGwei));
+                    if (!input.isValid()) throw new Error('Invalid input for encryption');
+
+                    logMessage('[FHE] Generating ZK proof...', 'pending');
+                    const encryptedData = await input.encrypt();
+
+                    if (!encryptedData || !encryptedData.handles || !encryptedData.handles[0]) {
+                        throw new Error('Encryption failed or returned invalid data');
                     }
-                );
-                
-                logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
-                showNotification('Transaction submitted!', 'info');
-                
-                const receipt = await tx.wait();
-                
-                logMessage(`[SUCCESS] Bid submitted! Block: ${receipt.blockNumber}`, 'confirmed');
-                showNotification('Encrypted bid confirmed!', 'success');
-                
-                // Clear inputs
-                document.getElementById('bidAmount').value = '';
-                document.getElementById('depositAmount').value = '';
-                
-                // Reload state
-                await loadAuctionState();
-                
-            } catch (error) {
-                console.error('Bid error:', error);
-                const msg = error.reason || error.message || 'Transaction failed';
-                logMessage(`[ERROR] ${msg}`, 'failed');
-                showNotification(`Bid failed: ${msg}`, 'error');
-            } finally {
-                btn.innerHTML = '> ENCRYPT BID & SUBMIT';
-                btn.disabled = false;
+
+                    // Relayer SDK returns handles as hex strings
+                    const encryptedBid = encryptedData.handles[0];
+                    const proof = encryptedData.inputProof;
+                    
+                    // Ensure encryptedBid is bytes32 format
+                    const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
+                        ? encryptedBid 
+                        : ethers.utils.hexlify(encryptedBid);
+                    
+                    // Convert to string để log (handles có thể là bytes32 hoặc hex string)
+                    const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
+                    logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 20) + '...', 'confirmed');
+                    
+                    console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
+                    console.log('DEBUG - Proof length:', proof.length);
+                    console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
+                    
+                    // Generate EIP-712 signature
+                    btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
+                    logMessage('[EIP-712] Requesting signature for encrypted bid...', 'pending');
+                    
+                    // According to contract, we sign the encryptedBid itself as publicKey
+                    // This is the "public key" that was used to encrypt (for verification)
+                    const publicKeyToSign = encryptedBidBytes32;
+                    
+                    console.log('DEBUG - Public Key to sign:', publicKeyToSign, 'Length:', publicKeyToSign.length);
+                    
+                    const domain = {
+                        name: 'FHEAuction',
+                        version: '1',
+                        chainId: SEPOLIA_CHAIN_ID,
+                        verifyingContract: CONTRACT_ADDRESS
+                    };
+                    
+                    const types = {
+                        PublicKey: [
+                            { name: 'key', type: 'bytes32' }
+                        ]
+                    };
+                    
+                    // Sign the encrypted bid as "public key" parameter
+                    const value = {
+                        key: publicKeyToSign
+                    };
+                    
+                    const signature = await signer._signTypedData(domain, types, value);
+                    logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
+                    console.log('DEBUG - Signature:', signature);
+                    
+                    // Submit transaction
+                    btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
+                    logMessage('[TX] Sending encrypted bid to contract...', 'pending');
+                    
+                    const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
+                    
+                    console.log('DEBUG - Transaction params:');
+                    console.log('  encryptedBid:', encryptedBidBytes32, '(length:', encryptedBidBytes32.length, ')');
+                    console.log('  proof length:', proof.length);
+                    console.log('  publicKey (same as encryptedBid):', publicKeyToSign, '(length:', publicKeyToSign.length, ')');
+                    console.log('  signature:', signature, '(length:', signature.length, ')');
+                    console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
+                    
+                    // Validate lengths before sending
+                    if (encryptedBidBytes32.length !== 66) {
+                        throw new Error(`Invalid encryptedBid length: ${encryptedBidBytes32.length}, expected 66 (0x + 64 hex chars)`);
+                    }
+                    
+                    // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
+                    const tx = await fheAuctionContract.bid(
+                        encryptedBidBytes32,           // bytes32 - encrypted handle
+                        proof,                          // bytes - ZK proof
+                        publicKeyToSign,                // bytes32 - same as encryptedBid (for EIP-712 verification)
+                        signature,                      // bytes - EIP-712 signature
+                        { 
+                            value: depositWei,
+                            gasLimit: 500000 // Set manual gas limit để bypass estimation
+                        }
+                    );
+                    
+                    logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
+                    showNotification('Transaction submitted!', 'info');
+                    
+                    const receipt = await tx.wait();
+                    
+                    logMessage(`[SUCCESS] Bid submitted! Block: ${receipt.blockNumber}`, 'confirmed');
+                    showNotification('Encrypted bid confirmed!', 'success');
+                    
+                    // Clear inputs
+                    document.getElementById('bidAmount').value = '';
+                    document.getElementById('depositAmount').value = '';
+                    
+                    // Reload state
+                    await loadAuctionState();
+                    
+                } catch (error) {
+                    console.error('Bid error:', error);
+                    const msg = error.reason || error.message || 'Transaction failed';
+                    logMessage(`[ERROR] ${msg}`, 'failed');
+                    showNotification(`Bid failed: ${msg}`, 'error');
+                }
             }
-        }
         
         // ========== OWNER FUNCTIONS ==========
         async function requestFinalize() {
@@ -776,22 +748,37 @@
                 document.getElementById('unpauseBtn').style.display = 'block';
                 await loadAuctionState();
             } catch (error) {
+                logMessage(`[ERROR] Pause failed: ${error.message}`, 'failed');
                 showNotification(`Failed: ${error.message}`, 'error');
             }
         }
         
         async function unpauseAuction() {
             try {
+                const btn = document.getElementById('unpauseBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="loading"></span> UNPAUSING...';
+                
                 logMessage('[UNPAUSE] Resuming auction...', 'pending');
                 const tx = await fheAuctionContract.unpauseAuction();
+                
+                logMessage('[TX] Waiting for confirmation...', 'pending');
                 await tx.wait();
+                
                 logMessage('[SUCCESS] Auction resumed', 'confirmed');
                 showNotification('Auction resumed', 'success');
+                
                 document.getElementById('pauseBtn').style.display = 'block';
                 document.getElementById('unpauseBtn').style.display = 'none';
+                
                 await loadAuctionState();
             } catch (error) {
+                logMessage(`[ERROR] Unpause failed: ${error.message}`, 'failed');
                 showNotification(`Failed: ${error.message}`, 'error');
+            } finally {
+                const btn = document.getElementById('unpauseBtn');
+                btn.disabled = false;
+                btn.innerHTML = '> UNPAUSE AUCTION';
             }
         }
         
@@ -913,12 +900,6 @@
             document.getElementById('emergencyEndBtn').addEventListener('click', emergencyEnd);
             document.getElementById('updateBeneficiaryBtn').addEventListener('click', updateBeneficiary);
             document.getElementById('batchRefundBtn').addEventListener('click', batchClaimRefunds);
-            
-            // Thêm handler cho retry button
-            document.getElementById('retryFHEBtn').addEventListener('click', () => {
-                document.getElementById('retryFHESection').style.display = 'none';
-                initFhevmSdk(0); // Reset retry count
-            });
             
             logMessage('[INIT] FHE Auction v0.9.1 interface loaded', 'confirmed');
             logMessage('[INFO] Contract: ' + CONTRACT_ADDRESS, 'info');
