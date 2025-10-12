@@ -274,7 +274,7 @@
         let isOwner = false;
         
         // Full ABI
-        const FHE_AUCTION_ABI = [{"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"},{"internalType":"address","name":"_gatewayContract","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AuctionAlreadyFinalized","type":"error"},{"inputs":[],"name":"AuctionNotActive","type":"error"},{"inputs":[],"name":"AuctionStillActive","type":"error"},{"inputs":[],"name":"ContractPaused","type":"error"},{"inputs":[],"name":"DecryptionAlreadyPending","type":"error"},{"inputs":[],"name":"EmergencyDelayNotMet","type":"error"},{"inputs":[],"name":"InsufficientDeposit","type":"error"},{"inputs":[],"name":"InvalidAddress","type":"error"},{"inputs":[],"name":"InvalidAmount","type":"error"},{"inputs":[],"name":"InvalidDecryptionData","type":"error"},{"inputs":[],"name":"InvalidShortString","type":"error"},{"inputs":[],"name":"InvalidSignature","type":"error"},{"inputs":[],"name":"InvalidState","type":"error"},{"inputs":[],"name":"MaxBiddersReached","type":"error"},{"inputs":[],"name":"NoBidders","type":"error"},{"inputs":[],"name":"NoRefundAvailable","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"inputs":[],"name":"Unauthorized","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"BidReceived","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":true,"internalType":"address","name":"winner","type":"address"},{"indexed":false,"internalType":"uint256","name":"finalBid","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"AuctionFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"requestId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"},{"indexed":false,"internalType":"bytes32[]","name":"handles","type":"bytes32[]"}],"name":"DecryptionRequested","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundAvailable","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"string","name":"reason","type":"string"}],"name":"EmergencyActivated","type":"event"},{"anonymous":false,"inputs":[{"internalType":"enum FHEAuction.AuctionState","name":"from","type":"uint8"},{"internalType":"enum FHEAuction.AuctionState","name":"to","type":"uint8"}],"name":"StateChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"oldBeneficiary","type":"address"},{"indexed":true,"internalType":"address","name":"newBeneficiary","type":"address"}],"name":"BeneficiaryUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"inputProof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address[]","name":"claimants","type":"address[]"}],"name":"batchClaimRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"forceFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newBeneficiary","type":"address"}],"name":"updateBeneficiary","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"emergencyWithdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getAuctionInfo","outputs":[{"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum FHEAuction.AuctionState","name":"state","type":"uint8"},{"internalType":"uint256","name":"maxDeposit","type":"uint256"},{"internalType":"address","name":"leadBidder","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"getBidderInfo","outputs":[{"internalType":"uint256","name":"deposit","type":"uint256"},{"internalType":"bool","name":"hasBidded","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getRoundBidders","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isEmergencyAvailable","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getProtocolId","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"pendingRefunds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionState","outputs":[{"internalType":"enum FHEAuction.AuctionState","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}];
+        const FHE_AUCTION_ABI = [{"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"},{"internalType":"address","name":"_gatewayContract","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AuctionAlreadyFinalized","type":"error"},{"inputs":[],"name":"AuctionNotActive","type":"error"},{"inputs":[],"name":"AuctionStillActive","type":"error"},{"inputs":[],"name":"ContractPaused","type":"error"},{"inputs":[],"name":"DecryptionAlreadyPending","type":"error"},{"inputs":[],"name":"EmergencyDelayNotMet","type":"error"},{"inputs":[],"name":"InsufficientDeposit","type":"error"},{"inputs":[],"name":"InvalidAddress","type":"error"},{"inputs":[],"name":"InvalidAmount","type":"error"},{"inputs":[],"name":"InvalidDecryptionData","type":"error"},{"inputs":[],"name":"InvalidShortString","type":"error"},{"inputs":[],"name":"InvalidSignature","type":"error"},{"inputs":[],"name":"InvalidState","type":"error"},{"inputs":[],"name":"MaxBiddersReached","type":"error"},{"inputs":[],"name":"NoBidders","type":"error"},{"inputs":[],"name":"NoRefundAvailable","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"inputs":[],"name":"Unauthorized","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"BidReceived","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":true,"internalType":"address","name":"winner","type":"address"},{"indexed":false,"internalType":"uint256","name":"finalBid","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"AuctionFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"requestId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"},{"indexed":false,"internalType":"bytes32[]","name":"handles","type":"bytes32[]"}],"name":"DecryptionRequested","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundAvailable","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"string","name":"reason","type":"string"}],"name":"EmergencyActivated","type":"event"},{"anonymous":false,"inputs":[{"internalType":"enum FHEAuction.AuctionState","name":"from","type":"uint8"},{"internalType":"enum FHEAuction.AuctionState","name":"to","type":"uint8"}],"name":"StateChanged","type":"event"},{"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"inputProof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address[]","name":"claimants","type":"address[]"}],"name":"batchClaimRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"forceFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newBeneficiary","type":"address"}],"name":"updateBeneficiary","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getAuctionInfo","outputs":[{"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum FHEAuction.AuctionState","name":"state","type":"uint8"},{"internalType":"uint256","name":"maxDeposit","type":"uint256"},{"internalType":"address","name":"leadBidder","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"getBidderInfo","outputs":[{"internalType":"uint256","name":"deposit","type":"uint256"},{"internalType":"bool","name":"hasBidded","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getRoundBidders","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"pendingRefunds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionState","outputs":[{"internalType":"enum FHEAuction.AuctionState","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}];
         
         // ========== UTILITY FUNCTIONS ==========
         function formatLogTime() {
@@ -578,53 +578,66 @@
             const btn = document.getElementById('bidBtn');
             
             try {
-                btn.innerHTML = '<span class="loading"></span> GENERATING KEYPAIR...';
+                btn.innerHTML = '<span class="loading"></span> ENCRYPTING...';
                 btn.disabled = true;
                 
-                logMessage('[FHE] Generating ephemeral keypair...', 'info');
-                const { publicKey, privateKey } = await fhevmInstance.generateKeypair();
+                logMessage(`[BID] Encrypting ${bidAmountGwei} Gwei with FHE SDK...`, 'info');
                 
-                // Normalize publicKey to hex string with '0x'
-                let publicKeyHex = publicKey;
-                if (typeof publicKey === 'object' && publicKey.serialize) {
-                    publicKeyHex = ethers.utils.hexlify(publicKey.serialize());
-                } else if (typeof publicKey === 'string' && !publicKey.startsWith('0x')) {
-                    publicKeyHex = '0x' + publicKey;
-                } else if (publicKey instanceof Uint8Array) {
-                    publicKeyHex = ethers.utils.hexlify(publicKey);
-                }
-                
-                const publicKeyBytes = ethers.utils.arrayify(publicKeyHex);
-                const hashedPublicKey = ethers.utils.keccak256(publicKeyBytes);
-                
-                logMessage('[FHE] Keypair generated. Hashed PK: ' + hashedPublicKey.substring(0, 20) + '...', 'confirmed');
-                
-                // Create EIP-712 typed data using SDK helper
-                btn.innerHTML = '<span class="loading"></span> PREPARING EIP-712...';
-                const eip712 = fhevmInstance.createEIP712(publicKey, CONTRACT_ADDRESS);
-                
-                // Sign the typed data
-                logMessage('[EIP-712] Requesting signature for public key...', 'pending');
-                const signature = await signer.signTypedData(eip712.domain, eip712.types, eip712.message);
-                logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
-                
-                // Encrypt the bid using the public key
-                btn.innerHTML = '<span class="loading"></span> ENCRYPTING...';
-                logMessage(`[BID] Encrypting ${bidAmountGwei} Gwei with FHE SDK...', 'info');
-                
+                // Create encrypted input using Relayer SDK
                 const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
                 input.add64(BigInt(bidAmountGwei));
                 
                 logMessage('[FHE] Generating ZK proof...', 'pending');
-                const encryptedData = await input.encrypt({ publicKey: publicKeyHex });  // Use normalized hex if needed
+                const encryptedData = await input.encrypt();
                 
+                // Relayer SDK returns handles as hex strings
                 const encryptedBid = encryptedData.handles[0];
                 const proof = encryptedData.inputProof;
                 
-                const encryptedBidBytes32 = ethers.utils.hexlify(encryptedBid);
+                // Ensure encryptedBid is bytes32 format
+                const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
+                    ? encryptedBid 
+                    : ethers.utils.hexlify(encryptedBid);
                 
-                const handleStr = encryptedBidBytes32.substring(0, 20) + '...';
-                logMessage('[FHE] Encryption complete. Handle: ' + handleStr, 'confirmed');
+                // Convert to string để log (handles có thể là bytes32 hoặc hex string)
+                const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
+                logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 20) + '...', 'confirmed');
+                
+                console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
+                console.log('DEBUG - Proof length:', proof.length);
+                console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
+                
+                // Generate EIP-712 signature
+                btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
+                logMessage('[EIP-712] Requesting signature for encrypted bid...', 'pending');
+                
+                // According to contract, we sign the encryptedBid itself as publicKey
+                // This is the "public key" that was used to encrypt (for verification)
+                const publicKeyToSign = encryptedBidBytes32;
+                
+                console.log('DEBUG - Public Key to sign:', publicKeyToSign, 'Length:', publicKeyToSign.length);
+                
+                const domain = {
+                    name: 'FHEAuction',
+                    version: '1',
+                    chainId: SEPOLIA_CHAIN_ID,
+                    verifyingContract: CONTRACT_ADDRESS
+                };
+                
+                const types = {
+                    PublicKey: [
+                        { name: 'key', type: 'bytes32' }
+                    ]
+                };
+                
+                // Sign the encrypted bid as "public key" parameter
+                const value = {
+                    key: publicKeyToSign
+                };
+                
+                const signature = await signer._signTypedData(domain, types, value);
+                logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
+                console.log('DEBUG - Signature:', signature);
                 
                 // Submit transaction
                 btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
@@ -632,14 +645,27 @@
                 
                 const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
                 
+                console.log('DEBUG - Transaction params:');
+                console.log('  encryptedBid:', encryptedBidBytes32, '(length:', encryptedBidBytes32.length, ')');
+                console.log('  proof length:', proof.length);
+                console.log('  publicKey (same as encryptedBid):', publicKeyToSign, '(length:', publicKeyToSign.length, ')');
+                console.log('  signature:', signature, '(length:', signature.length, ')');
+                console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
+                
+                // Validate lengths before sending
+                if (encryptedBidBytes32.length !== 66) {
+                    throw new Error(`Invalid encryptedBid length: ${encryptedBidBytes32.length}, expected 66 (0x + 64 hex chars)`);
+                }
+                
+                // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
                 const tx = await fheAuctionContract.bid(
-                    encryptedBidBytes32,
-                    proof,
-                    hashedPublicKey,
-                    signature,
+                    encryptedBidBytes32,           // bytes32 - encrypted handle
+                    proof,                          // bytes - ZK proof
+                    publicKeyToSign,                // bytes32 - same as encryptedBid (for EIP-712 verification)
+                    signature,                      // bytes - EIP-712 signature
                     { 
                         value: depositWei,
-                        gasLimit: 500000
+                        gasLimit: 500000 // Set manual gas limit để bypass estimation
                     }
                 );
                 
