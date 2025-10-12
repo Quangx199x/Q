@@ -148,12 +148,12 @@
             <!-- Place Bid -->
             <div class="card">
                 <h2>💰 SUBMIT ENCRYPTED BID <span class="fhe-badge">FHE</span></h2>
-                <label for="bidAmount" class="log-line">[INPUT] Bid Amount (ETH):</label>
+                <label for="bidAmount" class="log-line">[INPUT] Bid Amount (Gwei):</label>
                 <input 
                     type="number" 
                     id="bidAmount" 
-                    placeholder="Amount in ETH (will convert to Gwei)" 
-                    step="0.000000001"
+                    placeholder="Amount in Gwei (euint64)" 
+                    step="1"
                     min="0"
                 >
                 <label for="depositAmount" class="log-line">[INPUT] Deposit Amount (ETH):</label>
@@ -177,7 +177,25 @@
                     </div>
                 </div>
             </div>
-
+            <div class="card">
+                <h2>💰 SUBMIT ENCRYPTED BID <span class="fhe-badge">FHE</span></h2>
+                <label for="bidAmount" class="log-line">[INPUT] Bid Amount (ETH):</label>
+                <input 
+                    type="number" 
+                    id="bidAmount" 
+                    placeholder="Amount in ETH (max ~18.44)" 
+                    step="0.000000001"
+                    min="0"
+                >
+                 </div>
+                <label for="depositAmount" class="log-line">[INPUT] Deposit Amount (ETH):</label>
+                <input 
+                    type="number" 
+                    id="depositAmount" 
+                    placeholder="ETH to send (≥ min deposit)" 
+                    step="0.001"
+                    min="0"
+                >
             <!-- Owner Controls -->
             <div class="card" id="ownerPanel" style="display: none;">
                 <h2>⚙️ OWNER CONTROLS <span class="fhe-badge">ADMIN</span></h2>
@@ -265,6 +283,7 @@
         const SEPOLIA_CHAIN_ID = 11155111;
         const SEPOLIA_RPC = 'https://eth-sepolia.public.blastapi.io';
         const RELAYER_URL = 'https://relayer.testnet.zama.cloud';
+        const MAX_EUINT64_GWEI = BigInt('18446744073709551615'); 
         
         // State variables
         let provider, signer, account;
@@ -486,112 +505,55 @@
         // ========== CONNECT WALLET ==========
         async function connectWallet() {
             if (typeof window.ethereum === 'undefined') {
-                logMessage('[ERROR] MetaMask not detected! Please install MetaMask', 'failed');
-                showNotification('MetaMask not detected! Please install MetaMask', 'error');
+                showNotification('MetaMask not detected!', 'error');
                 return;
             }
-
-            const btn = document.getElementById('connectBtn');
             
             try {
+                const btn = document.getElementById('connectBtn');
                 btn.innerHTML = '<span class="loading"></span> CONNECTING...';
                 btn.disabled = true;
                 
-                // Force refresh any existing provider
-                if (provider) {
-                    provider = null;
-                    signer = null;
-                    account = null;
-                    fheAuctionContract = null;
-                }
-
-                logMessage('[WALLET] Requesting MetaMask connection...', 'pending');
+                logMessage('[WALLET] Requesting connection...', 'info');
                 
-                // Request accounts with error handling
-                try {
-                    const accounts = await window.ethereum.request({ 
-                        method: 'eth_requestAccounts',
-                        params: [] 
-                    });
-                    
-                    if (!accounts || accounts.length === 0) {
-                        throw new Error('No accounts returned from MetaMask');
-                    }
-                    logMessage('[WALLET] Account access granted', 'confirmed');
-                } catch (reqError) {
-                    throw new Error(`MetaMask connection failed: ${reqError.message}`);
-                }
-
-                // Switch to Sepolia with better error handling
+                // Request accounts
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                // Switch to Sepolia
                 try {
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: `0x${SEPOLIA_CHAIN_ID.toString(16)}` }],
                     });
-                    logMessage('[NETWORK] Connected to Sepolia testnet', 'confirmed');
                 } catch (switchError) {
                     if (switchError.code === 4902) {
-                        try {
-                            await window.ethereum.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: `0x${SEPOLIA_CHAIN_ID.toString(16)}`,
-                                    chainName: 'Sepolia Test Network',
-                                    nativeCurrency: {
-                                        name: 'ETH',
-                                        symbol: 'ETH',
-                                        decimals: 18
-                                    },
-                                    rpcUrls: ['https://eth-sepolia.public.blastapi.io'],
-                                    blockExplorerUrls: ['https://sepolia.etherscan.io']
-                                }]
-                            });
-                            logMessage('[NETWORK] Added Sepolia network to MetaMask', 'confirmed');
-                        } catch (addError) {
-                            throw new Error(`Failed to add Sepolia network: ${addError.message}`);
-                        }
+                        showNotification('Please add Sepolia network to MetaMask', 'error');
+                        throw new Error('Sepolia network not added');
                     }
-                    throw new Error(`Failed to switch network: ${switchError.message}`);
+                    throw switchError;
                 }
-
-                // Initialize provider with explicit options
-                provider = new ethers.providers.Web3Provider(window.ethereum, {
-                    name: 'Sepolia Test Network',
-                    chainId: SEPOLIA_CHAIN_ID
-                });
-
-                // Force provider refresh
-                await provider.send('eth_requestAccounts', []);
                 
+                // Setup provider
+                provider = new ethers.providers.Web3Provider(window.ethereum);
                 signer = provider.getSigner();
                 account = await signer.getAddress();
                 
-                if (!account) {
-                    throw new Error('Failed to get signer address');
-                }
-
                 logMessage(`[WALLET] Connected: ${account.substring(0, 10)}...`, 'confirmed');
-
-                // Initialize FHE SDK with retry
-                try {
-                    fhevmInstance = await initFhevmSdk();
-                } catch (fheError) {
-                    logMessage('[WARNING] FHE SDK initialization failed, retrying...', 'warning');
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
-                    fhevmInstance = await initFhevmSdk();
-                }
-
-                // Setup contract with connected signer
+                
+                // Initialize FHE SDK
+                fhevmInstance = await initFhevmSdk();
+                
+                // Setup contract
                 fheAuctionContract = new ethers.Contract(CONTRACT_ADDRESS, FHE_AUCTION_ABI, signer);
-                logMessage('[CONTRACT] Instance created with connected signer', 'confirmed');
-
-                // Load contract state
+                logMessage('[CONTRACT] Instance created', 'confirmed');
+                
+                // Load state
                 await loadAuctionState();
                 
                 // Setup event listeners
                 setupEventListeners();
-
-                // Update UI status
+                
+                // Update UI
                 document.getElementById('walletStatus').innerHTML = `
                     <p class="log-line log-confirmed">[STATUS] Wallet: CONNECTED ✓</p>
                     <p class="log-line log-confirmed">[ADDRESS] ${account.substring(0, 10)}...${account.substring(38)}</p>
@@ -601,179 +563,215 @@
                 btn.textContent = '✓ CONNECTED';
                 document.getElementById('bidBtn').disabled = false;
                 
-                showNotification('Wallet connected successfully!', 'success');
-
-                // Setup network change listener
-                window.ethereum.on('chainChanged', (chainId) => {
-                    if (chainId !== `0x${SEPOLIA_CHAIN_ID.toString(16)}`) {
-                        logMessage('[NETWORK] Wrong network detected, reloading...', 'warning');
-                        window.location.reload();
-                    }
-                });
-
-                // Setup account change listener
-                window.ethereum.on('accountsChanged', (accounts) => {
-                    logMessage('[WALLET] Account changed, reloading...', 'warning');
-                    window.location.reload();
-                });
-
+                showNotification('Connected successfully!', 'success');
+                
+                // Watch for account/network changes
+                window.ethereum.on('accountsChanged', () => window.location.reload());
+                window.ethereum.on('chainChanged', () => window.location.reload());
+                
             } catch (error) {
                 console.error('Connection error:', error);
-                logMessage(`[ERROR] ${error.message}`, 'failed');
-                showNotification(`Connection failed: ${error.message}`, 'error');
+                const btn = document.getElementById('connectBtn');
                 btn.textContent = '> CONNECT WALLET & INIT FHE SDK';
                 btn.disabled = false;
+                showNotification(`Connection failed: ${error.message}`, 'error');
+                logMessage(`[ERROR] ${error.message}`, 'failed');
             }
         }
         
         // ========== PLACE BID ==========
-        async function placeBid() {
-            const bidAmountETH = parseFloat(document.getElementById('bidAmount').value);
+       async function placeBid() {
+            const bidAmountETH = parseFloat(document.getElementById('bidAmount').value); // Lấy giá trị ETH
             const depositAmountETH = parseFloat(document.getElementById('depositAmount').value);
-
+            
             if (isNaN(bidAmountETH) || bidAmountETH <= 0) {
-                showNotification('Invalid bid amount', 'error');
+                showNotification('Invalid bid amount (ETH)', 'error');
                 return;
             }
-
-            // Convert ETH to Gwei for FHE encryption
-            const bidAmountGwei = Math.floor(bidAmountETH * 1e9);
             
-            if (bidAmountGwei <= 0 || bidAmountGwei >= Number.MAX_SAFE_INTEGER) {
-                showNotification('Bid amount out of range', 'error');
-                return;
-            }
-
             if (isNaN(depositAmountETH) || depositAmountETH <= 0) {
-                showNotification('Invalid deposit amount', 'error');
+                showNotification('Invalid deposit amount (ETH)', 'error');
                 return;
             }
-            
+
             const btn = document.getElementById('bidBtn');
+            const depositAmountWei = ethers.utils.parseEther(depositAmountETH.toString());
             
+            // 1. Kiểm tra Deposit tối thiểu (Wei)
+            if (depositAmountWei.lt(minDepositWei)) {
+                showNotification(`Deposit must be at least ${ethers.utils.formatEther(minDepositWei)} ETH.`, 'error');
+                return;
+            }
+
             try {
                 btn.innerHTML = '<span class="loading"></span> ENCRYPTING...';
                 btn.disabled = true;
-
-                logMessage(`[BID] Converting ${bidAmountETH} ETH to ${bidAmountGwei} Gwei...`, 'info');
-                logMessage(`[BID] Encrypting ${bidAmountGwei} Gwei with FHE SDK...`, 'info');
-
-                // Add error handling for encryption
-                try {
-                    const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
-                    if (!input) throw new Error('Failed to create encrypted input');
-                    
-                    input.add64(BigInt(bidAmountGwei));
-                    if (!input.isValid()) throw new Error('Invalid input for encryption');
-
-                    logMessage('[FHE] Generating ZK proof...', 'pending');
-                    const encryptedData = await input.encrypt();
-
-                    if (!encryptedData || !encryptedData.handles || !encryptedData.handles[0]) {
-                        throw new Error('Encryption failed or returned invalid data');
-                    }
-
-                    // Relayer SDK returns handles as hex strings
-                    const encryptedBid = encryptedData.handles[0];
-                    const proof = encryptedData.inputProof;
-                    
-                    // Ensure encryptedBid is bytes32 format
-                    const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
-                        ? encryptedBid 
-                        : ethers.utils.hexlify(encryptedBid);
-                    
-                    // Convert to string để log (handles có thể là bytes32 hoặc hex string)
-                    const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
-                    logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 20) + '...', 'confirmed');
-                    
-                    console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
-                    console.log('DEBUG - Proof length:', proof.length);
-                    console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
-                    
-                    // Generate EIP-712 signature
-                    btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
-                    logMessage('[EIP-712] Requesting signature for encrypted bid...', 'pending');
-                    
-                    // According to contract, we sign the encryptedBid itself as publicKey
-                    // This is the "public key" that was used to encrypt (for verification)
-                    const publicKeyToSign = encryptedBidBytes32;
-                    
-                    console.log('DEBUG - Public Key to sign:', publicKeyToSign, 'Length:', publicKeyToSign.length);
-                    
-                    const domain = {
-                        name: 'FHEAuction',
-                        version: '1',
-                        chainId: SEPOLIA_CHAIN_ID,
-                        verifyingContract: CONTRACT_ADDRESS
-                    };
-                    
-                    const types = {
-                        PublicKey: [
-                            { name: 'key', type: 'bytes32' }
-                        ]
-                    };
-                    
-                    // Sign the encrypted bid as "public key" parameter
-                    const value = {
-                        key: publicKeyToSign
-                    };
-                    
-                    const signature = await signer._signTypedData(domain, types, value);
-                    logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
-                    console.log('DEBUG - Signature:', signature);
-                    
-                    // Submit transaction
-                    btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
-                    logMessage('[TX] Sending encrypted bid to contract...', 'pending');
-                    
-                    const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
-                    
-                    console.log('DEBUG - Transaction params:');
-                    console.log('  encryptedBid:', encryptedBidBytes32, '(length:', encryptedBidBytes32.length, ')');
-                    console.log('  proof length:', proof.length);
-                    console.log('  publicKey (same as encryptedBid):', publicKeyToSign, '(length:', publicKeyToSign.length, ')');
-                    console.log('  signature:', signature, '(length:', signature.length, ')');
-                    console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
-                    
-                    // Validate lengths before sending
-                    if (encryptedBidBytes32.length !== 66) {
-                        throw new Error(`Invalid encryptedBid length: ${encryptedBidBytes32.length}, expected 66 (0x + 64 hex chars)`);
-                    }
-                    
-                    // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
-                    const tx = await fheAuctionContract.bid(
-                        encryptedBidBytes32,           // bytes32 - encrypted handle
-                        proof,                          // bytes - ZK proof
-                        publicKeyToSign,                // bytes32 - same as encryptedBid (for EIP-712 verification)
-                        signature,                      // bytes - EIP-712 signature
-                        { 
-                            value: depositWei,
-                            gasLimit: 500000 // Set manual gas limit để bypass estimation
-                        }
-                    );
-                    
-                    logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
-                    showNotification('Transaction submitted!', 'info');
-                    
-                    const receipt = await tx.wait();
-                    
-                    logMessage(`[SUCCESS] Bid submitted! Block: ${receipt.blockNumber}`, 'confirmed');
-                    showNotification('Encrypted bid confirmed!', 'success');
-                    
-                    // Clear inputs
-                    document.getElementById('bidAmount').value = '';
-                    document.getElementById('depositAmount').value = '';
-                    
-                    // Reload state
-                    await loadAuctionState();
-                    
-                } catch (error) {
-                    console.error('Bid error:', error);
-                    const msg = error.reason || error.message || 'Transaction failed';
-                    logMessage(`[ERROR] ${msg}`, 'failed');
-                    showNotification(`Bid failed: ${msg}`, 'error');
+                
+                // === LOGIC CHUYỂN ĐỔI ETH -> GWEI VÀ KIỂM TRA GIỚI HẠN ===
+                
+                // Chuyển đổi ETH sang Gwei (ETH * 10^9)
+                const bidAmountGwei = BigInt(Math.round(bidAmountETH * 1e9)); 
+                
+                // Kiểm tra giới hạn euint64
+                if (bidAmountGwei > MAX_EUINT64_GWEI) {
+                    showNotification('Bid amount too high (Max ~18.44 ETH)', 'error');
+                    btn.innerHTML = '> ENCRYPT BID & SUBMIT';
+                    btn.disabled = false;
+                    return;
                 }
+                
+                logMessage(`[BID] Encrypting ${bidAmountGwei.toString()} Gwei (from ${bidAmountETH} ETH) with FHE SDK...`, 'info');
+                
+                // === LOGIC MÃ HÓA FHE VÀ GỬI TX ===
+                
+                // 2. Lấy Public Key và Ký EIP712
+                const { publicKey, signature } = await fhevmInstance.signPublicKey(signer, EIP712_DOMAIN_NAME, EIP712_DOMAIN_VERSION);
+                const publicKeyBytes32 = ethers.utils.hexlify(publicKey);
+                
+                // 3. Mã hóa giá thầu và tạo Proof
+                const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
+                input.add64(bidAmountGwei); 
+
+                logMessage('[FHE] Generating ZK proof...', 'pending');
+                const encryptedData = await input.encrypt();
+                const encryptedHandle = encryptedData.handles[0];
+                const proofBytes = encryptedData.inputProof;
+                
+                logMessage(`[TX] Sending encrypted bid... Hash: PENDING`, 'pending');
+                
+                // 4. Gọi hàm bid() trên hợp đồng
+                const tx = await fheAuctionContract.bid(
+                    encryptedHandle, 
+                    proofBytes, 
+                    publicKeyBytes32, 
+                    signature,
+                    { value: depositAmountWei } // Gửi ETH deposit
+                ); 
+                
+                logMessage(`[TX] Sent. Waiting confirmation for Hash: ${tx.hash.substring(0, 10)}...`, 'pending');
+
+                await tx.wait(); 
+                
+                logMessage(`[SUCCESS] TX confirmed. Bid submitted.`, 'confirmed');
+                showNotification('Encrypted Bid Confirmed!', 'success');
+                document.getElementById('bidAmount').value = '';
+                document.getElementById('depositAmount').value = '';
+
+            } catch (error) {
+                console.error("Bid Failed:", error);
+                const msg = error.reason || error.message || 'Transaction Failed';
+                showNotification(`TX FAILED: ${msg}`, 'error');
+                logMessage(`[FATAL] Transaction failed: ${msg}`, 'failed');
+            } finally {
+                await loadAuctionState();
             }
+        }
+
+                
+                // Relayer SDK returns handles as hex strings
+                const encryptedBid = encryptedData.handles[0];
+                const proof = encryptedData.inputProof;
+                
+                // Ensure encryptedBid is bytes32 format
+                const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
+                    ? encryptedBid 
+                    : ethers.utils.hexlify(encryptedBid);
+                
+                // Convert to string để log (handles có thể là bytes32 hoặc hex string)
+                const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
+                logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 20) + '...', 'confirmed');
+                
+                console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
+                console.log('DEBUG - Proof length:', proof.length);
+                console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
+                
+                // Generate EIP-712 signature
+                btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
+                logMessage('[EIP-712] Requesting signature for encrypted bid...', 'pending');
+                
+                // According to contract, we sign the encryptedBid itself as publicKey
+                // This is the "public key" that was used to encrypt (for verification)
+                const publicKeyToSign = encryptedBidBytes32;
+                
+                console.log('DEBUG - Public Key to sign:', publicKeyToSign, 'Length:', publicKeyToSign.length);
+                
+                const domain = {
+                    name: 'FHEAuction',
+                    version: '1',
+                    chainId: SEPOLIA_CHAIN_ID,
+                    verifyingContract: CONTRACT_ADDRESS
+                };
+                
+                const types = {
+                    PublicKey: [
+                        { name: 'key', type: 'bytes32' }
+                    ]
+                };
+                
+                // Sign the encrypted bid as "public key" parameter
+                const value = {
+                    key: publicKeyToSign
+                };
+                
+                const signature = await signer._signTypedData(domain, types, value);
+                logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
+                console.log('DEBUG - Signature:', signature);
+                
+                // Submit transaction
+                btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
+                logMessage('[TX] Sending encrypted bid to contract...', 'pending');
+                
+                const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
+                
+                console.log('DEBUG - Transaction params:');
+                console.log('  encryptedBid:', encryptedBidBytes32, '(length:', encryptedBidBytes32.length, ')');
+                console.log('  proof length:', proof.length);
+                console.log('  publicKey (same as encryptedBid):', publicKeyToSign, '(length:', publicKeyToSign.length, ')');
+                console.log('  signature:', signature, '(length:', signature.length, ')');
+                console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
+                
+                // Validate lengths before sending
+                if (encryptedBidBytes32.length !== 66) {
+                    throw new Error(`Invalid encryptedBid length: ${encryptedBidBytes32.length}, expected 66 (0x + 64 hex chars)`);
+                }
+                
+                // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
+                const tx = await fheAuctionContract.bid(
+                    encryptedBidBytes32,           // bytes32 - encrypted handle
+                    proof,                          // bytes - ZK proof
+                    publicKeyToSign,                // bytes32 - same as encryptedBid (for EIP-712 verification)
+                    signature,                      // bytes - EIP-712 signature
+                    { 
+                        value: depositWei,
+                        gasLimit: 500000 // Set manual gas limit để bypass estimation
+                    }
+                );
+                
+                logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
+                showNotification('Transaction submitted!', 'info');
+                
+                const receipt = await tx.wait();
+                
+                logMessage(`[SUCCESS] Bid submitted! Block: ${receipt.blockNumber}`, 'confirmed');
+                showNotification('Encrypted bid confirmed!', 'success');
+                
+                // Clear inputs
+                document.getElementById('bidAmount').value = '';
+                document.getElementById('depositAmount').value = '';
+                
+                // Reload state
+                await loadAuctionState();
+                
+            } catch (error) {
+                console.error('Bid error:', error);
+                const msg = error.reason || error.message || 'Transaction failed';
+                logMessage(`[ERROR] ${msg}`, 'failed');
+                showNotification(`Bid failed: ${msg}`, 'error');
+            } finally {
+                btn.innerHTML = '> ENCRYPT BID & SUBMIT';
+                btn.disabled = false;
+            }
+        }
         
         // ========== OWNER FUNCTIONS ==========
         async function requestFinalize() {
@@ -814,37 +812,22 @@
                 document.getElementById('unpauseBtn').style.display = 'block';
                 await loadAuctionState();
             } catch (error) {
-                logMessage(`[ERROR] Pause failed: ${error.message}`, 'failed');
                 showNotification(`Failed: ${error.message}`, 'error');
             }
         }
         
         async function unpauseAuction() {
             try {
-                const btn = document.getElementById('unpauseBtn');
-                btn.disabled = true;
-                btn.innerHTML = '<span class="loading"></span> UNPAUSING...';
-                
                 logMessage('[UNPAUSE] Resuming auction...', 'pending');
                 const tx = await fheAuctionContract.unpauseAuction();
-                
-                logMessage('[TX] Waiting for confirmation...', 'pending');
                 await tx.wait();
-                
                 logMessage('[SUCCESS] Auction resumed', 'confirmed');
                 showNotification('Auction resumed', 'success');
-                
                 document.getElementById('pauseBtn').style.display = 'block';
                 document.getElementById('unpauseBtn').style.display = 'none';
-                
                 await loadAuctionState();
             } catch (error) {
-                logMessage(`[ERROR] Unpause failed: ${error.message}`, 'failed');
                 showNotification(`Failed: ${error.message}`, 'error');
-            } finally {
-                const btn = document.getElementById('unpauseBtn');
-                btn.disabled = false;
-                btn.innerHTML = '> UNPAUSE AUCTION';
             }
         }
         
