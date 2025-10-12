@@ -565,6 +565,7 @@
             const bidAmountGwei = parseInt(document.getElementById('bidAmount').value);
             const depositAmountETH = parseFloat(document.getElementById('depositAmount').value);
             
+            
             if (isNaN(bidAmountGwei) || bidAmountGwei <= 0) {
                 showNotification('Invalid bid amount', 'error');
                 return;
@@ -593,6 +594,9 @@
                 // Relayer SDK returns handles as hex strings
                 const encryptedBid = encryptedData.handles[0];
                 const proof = encryptedData.inputProof;
+                console.log("encryptedBid:", encryptedData.handles[0]);
+                console.log("inputProof:", encryptedData.inputProof);
+                console.log("signature:", signature);
                 
                 // Ensure encryptedBid is bytes32 format
                 const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
@@ -638,6 +642,9 @@
                 const signature = await signer._signTypedData(domain, types, value);
                 logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
                 console.log('DEBUG - Signature:', signature);
+                console.log("encryptedBid:", encryptedData.handles[0]);
+console.log("inputProof:", encryptedData.inputProof);
+console.log("signature:", signature);
                 
                 // Submit transaction
                 btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
