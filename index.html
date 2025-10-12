@@ -590,16 +590,30 @@
                 logMessage('[FHE] Generating ZK proof...', 'pending');
                 const encryptedData = await input.encrypt();
                 
+                // Relayer SDK returns handles as hex strings
                 const encryptedBid = encryptedData.handles[0];
                 const proof = encryptedData.inputProof;
                 
+                // Ensure encryptedBid is bytes32 format
+                const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
+                    ? encryptedBid 
+                    : ethers.utils.hexlify(encryptedBid);
+                
                 // Convert to string để log (handles có thể là bytes32 hoặc hex string)
                 const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
-                logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 10) + '...', 'confirmed');
+                logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 20) + '...', 'confirmed');
+                
+                console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
+                console.log('DEBUG - Proof length:', proof.length);
+                console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
                 
                 // Generate EIP-712 signature
                 btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
-                logMessage('[EIP-712] Requesting signature...', 'pending');
+                logMessage('[EIP-712] Requesting signature for public key...', 'pending');
+                
+                // Get the FHE public key from instance
+                const publicKey = fhevmInstance.getPublicKey();
+                console.log('DEBUG - Public Key:', publicKey);
                 
                 const domain = {
                     name: 'FHEAuction',
@@ -614,12 +628,14 @@
                     ]
                 };
                 
+                // Sign the public key, not the encrypted bid!
                 const value = {
-                    key: encryptedBid
+                    key: publicKey.publicKey || publicKey
                 };
                 
                 const signature = await signer._signTypedData(domain, types, value);
-                logMessage('[EIP-712] Signature obtained', 'confirmed');
+                logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
+                console.log('DEBUG - Signature:', signature);
                 
                 // Submit transaction
                 btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
@@ -627,12 +643,23 @@
                 
                 const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
                 
+                console.log('DEBUG - Transaction params:');
+                console.log('  encryptedBid:', encryptedBidBytes32);
+                console.log('  proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
+                console.log('  publicKey:', publicKey.publicKey || publicKey);
+                console.log('  signature:', signature);
+                console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
+                
+                // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
                 const tx = await fheAuctionContract.bid(
-                    encryptedBid,
-                    proof,
-                    encryptedBid,
-                    signature,
-                    { value: depositWei }
+                    encryptedBidBytes32,           // bytes32 - encrypted handle
+                    proof,                          // bytes - ZK proof
+                    publicKey.publicKey || publicKey, // bytes32 - FHE public key
+                    signature,                      // bytes - EIP-712 signature
+                    { 
+                        value: depositWei,
+                        gasLimit: 500000 // Set manual gas limit để bypass estimation
+                    }
                 );
                 
                 logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
