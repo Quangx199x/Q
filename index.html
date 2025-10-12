@@ -609,7 +609,11 @@
                 
                 // Generate EIP-712 signature
                 btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
-                logMessage('[EIP-712] Requesting signature...', 'pending');
+                logMessage('[EIP-712] Requesting signature for public key...', 'pending');
+                
+                // Get the FHE public key from instance
+                const publicKey = fhevmInstance.getPublicKey();
+                console.log('DEBUG - Public Key:', publicKey);
                 
                 const domain = {
                     name: 'FHEAuction',
@@ -624,12 +628,14 @@
                     ]
                 };
                 
+                // Sign the public key, not the encrypted bid!
                 const value = {
-                    key: encryptedBid
+                    key: publicKey.publicKey || publicKey
                 };
                 
                 const signature = await signer._signTypedData(domain, types, value);
-                logMessage('[EIP-712] Signature obtained', 'confirmed');
+                logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
+                console.log('DEBUG - Signature:', signature);
                 
                 // Submit transaction
                 btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
