@@ -593,7 +593,9 @@
                 const encryptedBid = encryptedData.handles[0];
                 const proof = encryptedData.inputProof;
                 
-                logMessage('[FHE] Encryption complete. Handle: ' + encryptedBid.substring(0, 10) + '...', 'confirmed');
+                // Convert to string để log (handles có thể là bytes32 hoặc hex string)
+                const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
+                logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 10) + '...', 'confirmed');
                 
                 // Generate EIP-712 signature
                 btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
