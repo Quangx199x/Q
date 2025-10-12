@@ -265,6 +265,8 @@
         const SEPOLIA_CHAIN_ID = 11155111;
         const SEPOLIA_RPC = 'https://eth-sepolia.public.blastapi.io';
         const RELAYER_URL = 'https://relayer.testnet.zama.cloud';
+        const EIP712_DOMAIN_NAME = "FHEAuction";
+        const EIP712_DOMAIN_VERSION = "1";
         
         // State variables
         let provider, signer, account;
@@ -561,10 +563,11 @@
         }
         
         // ========== PLACE BID ==========
-        async function placeBid() {
+       async function placeBid() {
             const bidAmountGwei = parseInt(document.getElementById('bidAmount').value);
             const depositAmountETH = parseFloat(document.getElementById('depositAmount').value);
             
+            // ... (Phần kiểm tra đầu vào giữ nguyên) ...
             if (isNaN(bidAmountGwei) || bidAmountGwei <= 0) {
                 showNotification('Invalid bid amount', 'error');
                 return;
@@ -583,92 +586,53 @@
                 
                 logMessage(`[BID] Encrypting ${bidAmountGwei} Gwei with FHE SDK...`, 'info');
                 
-                // Create encrypted input using Relayer SDK
+                // 1. Tạo bản mã (Ciphertext)
                 const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
                 input.add64(BigInt(bidAmountGwei));
                 
                 logMessage('[FHE] Generating ZK proof...', 'pending');
                 const encryptedData = await input.encrypt();
                 
-                // Relayer SDK returns handles as hex strings
-                const encryptedBid = encryptedData.handles[0];
+                const encryptedBidBytes32 = ethers.utils.hexlify(encryptedData.handles[0]);
                 const proof = encryptedData.inputProof;
                 
-                // Ensure encryptedBid is bytes32 format
-                const encryptedBidBytes32 = typeof encryptedBid === 'string' && encryptedBid.startsWith('0x') 
-                    ? encryptedBid 
-                    : ethers.utils.hexlify(encryptedBid);
-                
-                // Convert to string để log (handles có thể là bytes32 hoặc hex string)
-                const handleStr = typeof encryptedBid === 'string' ? encryptedBid : ethers.utils.hexlify(encryptedBid);
-                logMessage('[FHE] Encryption complete. Handle: ' + handleStr.substring(0, 20) + '...', 'confirmed');
-                
-                console.log('DEBUG - Encrypted Bid:', encryptedBidBytes32);
-                console.log('DEBUG - Proof length:', proof.length);
-                console.log('DEBUG - Proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
-                
-                // Generate EIP-712 signature
+                logMessage('[FHE] Encryption complete. Handle: ' + encryptedBidBytes32.substring(0, 20) + '...', 'confirmed');
+
+                // 2. Lấy FHE Public Key và Ký EIP712 (PHẦN ĐÃ SỬA LỖI)
                 btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
-                logMessage('[EIP-712] Requesting signature for encrypted bid...', 'pending');
+                logMessage('[EIP-712] Requesting FHE Public Key and signature...', 'pending');
                 
-                // According to contract, we sign the encryptedBid itself as publicKey
-                // This is the "public key" that was used to encrypt (for verification)
-                const publicKeyToSign = encryptedBidBytes32;
+                // *** FIX: Sử dụng hàm signPublicKey chuẩn của SDK để ký FHE Public Key ***
+                const { publicKey, signature } = await fhevmInstance.signPublicKey(
+                    signer, 
+                    EIP712_DOMAIN_NAME, 
+                    EIP712_DOMAIN_VERSION
+                );
                 
-                console.log('DEBUG - Public Key to sign:', publicKeyToSign, 'Length:', publicKeyToSign.length);
+                // Khóa công khai FHE (bytes32)
+                const publicKeyBytes32 = ethers.utils.hexlify(publicKey);
                 
-                const domain = {
-                    name: 'FHEAuction',
-                    version: '1',
-                    chainId: SEPOLIA_CHAIN_ID,
-                    verifyingContract: CONTRACT_ADDRESS
-                };
-                
-                const types = {
-                    PublicKey: [
-                        { name: 'key', type: 'bytes32' }
-                    ]
-                };
-                
-                // Sign the encrypted bid as "public key" parameter
-                const value = {
-                    key: publicKeyToSign
-                };
-                
-                const signature = await signer._signTypedData(domain, types, value);
                 logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
-                console.log('DEBUG - Signature:', signature);
-                
-                // Submit transaction
+
+                // 3. Gửi giao dịch
                 btn.innerHTML = '<span class="loading"></span> SUBMITTING TX...';
                 logMessage('[TX] Sending encrypted bid to contract...', 'pending');
                 
                 const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
                 
-                console.log('DEBUG - Transaction params:');
-                console.log('  encryptedBid:', encryptedBidBytes32, '(length:', encryptedBidBytes32.length, ')');
-                console.log('  proof length:', proof.length);
-                console.log('  publicKey (same as encryptedBid):', publicKeyToSign, '(length:', publicKeyToSign.length, ')');
-                console.log('  signature:', signature, '(length:', signature.length, ')');
-                console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
-                
-                // Validate lengths before sending
-                if (encryptedBidBytes32.length !== 66) {
-                    throw new Error(`Invalid encryptedBid length: ${encryptedBidBytes32.length}, expected 66 (0x + 64 hex chars)`);
-                }
-                
-                // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
+                // *** FIX: Đảm bảo các tham số public key và signature là chính xác ***
                 const tx = await fheAuctionContract.bid(
-                    encryptedBidBytes32,           // bytes32 - encrypted handle
-                    proof,                          // bytes - ZK proof
-                    publicKeyToSign,                // bytes32 - same as encryptedBid (for EIP-712 verification)
-                    signature,                      // bytes - EIP-712 signature
+                    encryptedBidBytes32,           // externalEuint64 encryptedBid (Ciphertext Handle)
+                    proof,                          // bytes inputProof (ZK Proof)
+                    publicKeyBytes32,               // bytes32 publicKey (FHE Public Key)
+                    signature,                      // bytes signature (EIP-712 Signature của Public Key)
                     { 
                         value: depositWei,
-                        gasLimit: 500000 // Set manual gas limit để bypass estimation
+                        gasLimit: 500000 
                     }
                 );
                 
+                // ... (Phần chờ xác nhận và cập nhật trạng thái giữ nguyên) ...
                 logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
                 showNotification('Transaction submitted!', 'info');
                 
@@ -677,11 +641,9 @@
                 logMessage(`[SUCCESS] Bid submitted! Block: ${receipt.blockNumber}`, 'confirmed');
                 showNotification('Encrypted bid confirmed!', 'success');
                 
-                // Clear inputs
                 document.getElementById('bidAmount').value = '';
                 document.getElementById('depositAmount').value = '';
                 
-                // Reload state
                 await loadAuctionState();
                 
             } catch (error) {
