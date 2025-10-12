@@ -177,25 +177,7 @@
                     </div>
                 </div>
             </div>
-            <div class="card">
-                <h2>💰 SUBMIT ENCRYPTED BID <span class="fhe-badge">FHE</span></h2>
-                <label for="bidAmount" class="log-line">[INPUT] Bid Amount (ETH):</label>
-                <input 
-                    type="number" 
-                    id="bidAmount" 
-                    placeholder="Amount in ETH (max ~18.44)" 
-                    step="0.000000001"
-                    min="0"
-                >
-                 </div>
-                <label for="depositAmount" class="log-line">[INPUT] Deposit Amount (ETH):</label>
-                <input 
-                    type="number" 
-                    id="depositAmount" 
-                    placeholder="ETH to send (≥ min deposit)" 
-                    step="0.001"
-                    min="0"
-                >
+
             <!-- Owner Controls -->
             <div class="card" id="ownerPanel" style="display: none;">
                 <h2>⚙️ OWNER CONTROLS <span class="fhe-badge">ADMIN</span></h2>
@@ -283,7 +265,6 @@
         const SEPOLIA_CHAIN_ID = 11155111;
         const SEPOLIA_RPC = 'https://eth-sepolia.public.blastapi.io';
         const RELAYER_URL = 'https://relayer.testnet.zama.cloud';
-        const MAX_EUINT64_GWEI = BigInt('18446744073709551615'); 
         
         // State variables
         let provider, signer, account;
@@ -580,93 +561,34 @@
         }
         
         // ========== PLACE BID ==========
-       async function placeBid() {
-            const bidAmountETH = parseFloat(document.getElementById('bidAmount').value); // Lấy giá trị ETH
+        async function placeBid() {
+            const bidAmountGwei = parseInt(document.getElementById('bidAmount').value);
             const depositAmountETH = parseFloat(document.getElementById('depositAmount').value);
             
-            if (isNaN(bidAmountETH) || bidAmountETH <= 0) {
-                showNotification('Invalid bid amount (ETH)', 'error');
+            if (isNaN(bidAmountGwei) || bidAmountGwei <= 0) {
+                showNotification('Invalid bid amount', 'error');
                 return;
             }
             
             if (isNaN(depositAmountETH) || depositAmountETH <= 0) {
-                showNotification('Invalid deposit amount (ETH)', 'error');
+                showNotification('Invalid deposit amount', 'error');
                 return;
             }
-
-            const btn = document.getElementById('bidBtn');
-            const depositAmountWei = ethers.utils.parseEther(depositAmountETH.toString());
             
-            // 1. Kiểm tra Deposit tối thiểu (Wei)
-            if (depositAmountWei.lt(minDepositWei)) {
-                showNotification(`Deposit must be at least ${ethers.utils.formatEther(minDepositWei)} ETH.`, 'error');
-                return;
-            }
-
+            const btn = document.getElementById('bidBtn');
+            
             try {
                 btn.innerHTML = '<span class="loading"></span> ENCRYPTING...';
                 btn.disabled = true;
                 
-                // === LOGIC CHUYỂN ĐỔI ETH -> GWEI VÀ KIỂM TRA GIỚI HẠN ===
+                logMessage(`[BID] Encrypting ${bidAmountGwei} Gwei with FHE SDK...`, 'info');
                 
-                // Chuyển đổi ETH sang Gwei (ETH * 10^9)
-                const bidAmountGwei = BigInt(Math.round(bidAmountETH * 1e9)); 
-                
-                // Kiểm tra giới hạn euint64
-                if (bidAmountGwei > MAX_EUINT64_GWEI) {
-                    showNotification('Bid amount too high (Max ~18.44 ETH)', 'error');
-                    btn.innerHTML = '> ENCRYPT BID & SUBMIT';
-                    btn.disabled = false;
-                    return;
-                }
-                
-                logMessage(`[BID] Encrypting ${bidAmountGwei.toString()} Gwei (from ${bidAmountETH} ETH) with FHE SDK...`, 'info');
-                
-                // === LOGIC MÃ HÓA FHE VÀ GỬI TX ===
-                
-                // 2. Lấy Public Key và Ký EIP712
-                const { publicKey, signature } = await fhevmInstance.signPublicKey(signer, EIP712_DOMAIN_NAME, EIP712_DOMAIN_VERSION);
-                const publicKeyBytes32 = ethers.utils.hexlify(publicKey);
-                
-                // 3. Mã hóa giá thầu và tạo Proof
+                // Create encrypted input using Relayer SDK
                 const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
-                input.add64(bidAmountGwei); 
-
+                input.add64(BigInt(bidAmountGwei));
+                
                 logMessage('[FHE] Generating ZK proof...', 'pending');
                 const encryptedData = await input.encrypt();
-                const encryptedHandle = encryptedData.handles[0];
-                const proofBytes = encryptedData.inputProof;
-                
-                logMessage(`[TX] Sending encrypted bid... Hash: PENDING`, 'pending');
-                
-                // 4. Gọi hàm bid() trên hợp đồng
-                const tx = await fheAuctionContract.bid(
-                    encryptedHandle, 
-                    proofBytes, 
-                    publicKeyBytes32, 
-                    signature,
-                    { value: depositAmountWei } // Gửi ETH deposit
-                ); 
-                
-                logMessage(`[TX] Sent. Waiting confirmation for Hash: ${tx.hash.substring(0, 10)}...`, 'pending');
-
-                await tx.wait(); 
-                
-                logMessage(`[SUCCESS] TX confirmed. Bid submitted.`, 'confirmed');
-                showNotification('Encrypted Bid Confirmed!', 'success');
-                document.getElementById('bidAmount').value = '';
-                document.getElementById('depositAmount').value = '';
-
-            } catch (error) {
-                console.error("Bid Failed:", error);
-                const msg = error.reason || error.message || 'Transaction Failed';
-                showNotification(`TX FAILED: ${msg}`, 'error');
-                logMessage(`[FATAL] Transaction failed: ${msg}`, 'failed');
-            } finally {
-                await loadAuctionState();
-            }
-        }
-
                 
                 // Relayer SDK returns handles as hex strings
                 const encryptedBid = encryptedData.handles[0];
