@@ -563,11 +563,11 @@
         }
         
         // ========== PLACE BID ==========
-       async function placeBid() {
+       // ========== PLACE BID (FIXED: Manual Public Key Signing) ==========
+        async function placeBid() {
             const bidAmountGwei = parseInt(document.getElementById('bidAmount').value);
             const depositAmountETH = parseFloat(document.getElementById('depositAmount').value);
             
-            // ... (Phần kiểm tra đầu vào giữ nguyên) ...
             if (isNaN(bidAmountGwei) || bidAmountGwei <= 0) {
                 showNotification('Invalid bid amount', 'error');
                 return;
@@ -598,19 +598,38 @@
                 
                 logMessage('[FHE] Encryption complete. Handle: ' + encryptedBidBytes32.substring(0, 20) + '...', 'confirmed');
 
-                // 2. Lấy FHE Public Key và Ký EIP712 (PHẦN ĐÃ SỬA LỖI)
+                // 2. Lấy FHE Public Key và Ký EIP712 (LOGIC ĐÃ SỬA LỖI)
                 btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
                 logMessage('[EIP-712] Requesting FHE Public Key and signature...', 'pending');
                 
-                // *** FIX: Sử dụng hàm signPublicKey chuẩn của SDK để ký FHE Public Key ***
-                const { publicKey, signature } = await fhevmInstance.signPublicKey(
-                    signer, 
-                    EIP712_DOMAIN_NAME, 
-                    EIP712_DOMAIN_VERSION
-                );
+                // --- CORRECT LOGIC FOR SDK v0.2.0 ---
+                // a) Lấy Public Key của FHE Instance
+                const fhek = fhevmInstance.getPublicKey(CONTRACT_ADDRESS); 
+                const publicKeyBytes32 = ethers.utils.hexlify(fhek.publicKey);
                 
-                // Khóa công khai FHE (bytes32)
-                const publicKeyBytes32 = ethers.utils.hexlify(publicKey);
+                // b) Định nghĩa EIP-712 Domain và Types
+                const domain = {
+                    name: EIP712_DOMAIN_NAME,
+                    version: EIP712_DOMAIN_VERSION,
+                    chainId: SEPOLIA_CHAIN_ID,
+                    verifyingContract: CONTRACT_ADDRESS
+                };
+                
+                const types = {
+                    PublicKey: [
+                        { name: 'key', type: 'bytes32' }
+                    ]
+                };
+                
+                // c) Giá trị cần ký (FHE Public Key)
+                const value = {
+                    key: publicKeyBytes32
+                };
+                
+                // d) Ký EIP-712
+                const signature = await signer._signTypedData(domain, types, value);
+                
+                // --- END CORRECT LOGIC ---
                 
                 logMessage('[EIP-712] Signature obtained: ' + signature.substring(0, 20) + '...', 'confirmed');
 
@@ -620,7 +639,7 @@
                 
                 const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
                 
-                // *** FIX: Đảm bảo các tham số public key và signature là chính xác ***
+                // Các tham số đã được chuẩn bị chính xác
                 const tx = await fheAuctionContract.bid(
                     encryptedBidBytes32,           // externalEuint64 encryptedBid (Ciphertext Handle)
                     proof,                          // bytes inputProof (ZK Proof)
@@ -633,7 +652,7 @@
                 );
                 
                 // ... (Phần chờ xác nhận và cập nhật trạng thái giữ nguyên) ...
-                logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending');
+                logMessage(`[TX] Hash: ${tx.hash.substring(0, 20)}...`, 'pending`);
                 showNotification('Transaction submitted!', 'info');
                 
                 const receipt = await tx.wait();
