@@ -490,21 +490,23 @@
                 showNotification('MetaMask not detected! Please install MetaMask', 'error');
                 return;
             }
+
+            const btn = document.getElementById('connectBtn');
             
             try {
-                const btn = document.getElementById('connectBtn');
                 btn.innerHTML = '<span class="loading"></span> CONNECTING...';
                 btn.disabled = true;
                 
-                logMessage('[WALLET] Requesting connection...', 'info');
-                
-                // Force refresh provider
+                // Force refresh any existing provider
                 if (provider) {
                     provider = null;
                     signer = null;
                     account = null;
+                    fheAuctionContract = null;
                 }
 
+                logMessage('[WALLET] Requesting MetaMask connection...', 'pending');
+                
                 // Request accounts with error handling
                 try {
                     const accounts = await window.ethereum.request({ 
@@ -515,10 +517,9 @@
                     if (!accounts || accounts.length === 0) {
                         throw new Error('No accounts returned from MetaMask');
                     }
-                    
                     logMessage('[WALLET] Account access granted', 'confirmed');
                 } catch (reqError) {
-                    throw new Error(`MetaMask account request failed: ${reqError.message}`);
+                    throw new Error(`MetaMask connection failed: ${reqError.message}`);
                 }
 
                 // Switch to Sepolia with better error handling
@@ -527,7 +528,7 @@
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: `0x${SEPOLIA_CHAIN_ID.toString(16)}` }],
                     });
-                    logMessage('[NETWORK] Switched to Sepolia', 'confirmed');
+                    logMessage('[NETWORK] Connected to Sepolia testnet', 'confirmed');
                 } catch (switchError) {
                     if (switchError.code === 4902) {
                         try {
@@ -541,24 +542,24 @@
                                         symbol: 'ETH',
                                         decimals: 18
                                     },
-                                    rpcUrls: [SEPOLIA_RPC],
+                                    rpcUrls: ['https://eth-sepolia.public.blastapi.io'],
                                     blockExplorerUrls: ['https://sepolia.etherscan.io']
                                 }]
                             });
+                            logMessage('[NETWORK] Added Sepolia network to MetaMask', 'confirmed');
                         } catch (addError) {
                             throw new Error(`Failed to add Sepolia network: ${addError.message}`);
                         }
-                    } else {
-                        throw new Error(`Failed to switch network: ${switchError.message}`);
                     }
+                    throw new Error(`Failed to switch network: ${switchError.message}`);
                 }
-                
-                // Setup provider with explicit connection
+
+                // Initialize provider with explicit options
                 provider = new ethers.providers.Web3Provider(window.ethereum, {
                     name: 'Sepolia Test Network',
                     chainId: SEPOLIA_CHAIN_ID
                 });
-                
+
                 // Force provider refresh
                 await provider.send('eth_requestAccounts', []);
                 
@@ -568,23 +569,29 @@
                 if (!account) {
                     throw new Error('Failed to get signer address');
                 }
-                
+
                 logMessage(`[WALLET] Connected: ${account.substring(0, 10)}...`, 'confirmed');
-                
-                // Initialize FHE SDK
+
+                // Initialize FHE SDK with retry
                 try {
                     fhevmInstance = await initFhevmSdk();
                 } catch (fheError) {
                     logMessage('[WARNING] FHE SDK initialization failed, retrying...', 'warning');
-                    // Retry FHE initialization once
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
                     fhevmInstance = await initFhevmSdk();
                 }
-                
+
                 // Setup contract with connected signer
                 fheAuctionContract = new ethers.Contract(CONTRACT_ADDRESS, FHE_AUCTION_ABI, signer);
-                logMessage('[CONTRACT] Instance created with signer', 'confirmed');
+                logMessage('[CONTRACT] Instance created with connected signer', 'confirmed');
+
+                // Load contract state
+                await loadAuctionState();
                 
-                // Update UI
+                // Setup event listeners
+                setupEventListeners();
+
+                // Update UI status
                 document.getElementById('walletStatus').innerHTML = `
                     <p class="log-line log-confirmed">[STATUS] Wallet: CONNECTED ✓</p>
                     <p class="log-line log-confirmed">[ADDRESS] ${account.substring(0, 10)}...${account.substring(38)}</p>
@@ -594,14 +601,8 @@
                 btn.textContent = '✓ CONNECTED';
                 document.getElementById('bidBtn').disabled = false;
                 
-                // Load contract state
-                await loadAuctionState();
-                
-                // Setup event listeners
-                setupEventListeners();
-                
                 showNotification('Wallet connected successfully!', 'success');
-                
+
                 // Setup network change listener
                 window.ethereum.on('chainChanged', (chainId) => {
                     if (chainId !== `0x${SEPOLIA_CHAIN_ID.toString(16)}`) {
@@ -609,24 +610,17 @@
                         window.location.reload();
                     }
                 });
-                
+
                 // Setup account change listener
                 window.ethereum.on('accountsChanged', (accounts) => {
-                    if (!accounts || accounts.length === 0) {
-                        logMessage('[WALLET] Account disconnected, reloading...', 'warning');
-                        window.location.reload();
-                    } else if (accounts[0] !== account) {
-                        logMessage('[WALLET] Account changed, reloading...', 'warning');
-                        window.location.reload();
-                    }
+                    logMessage('[WALLET] Account changed, reloading...', 'warning');
+                    window.location.reload();
                 });
-                
+
             } catch (error) {
                 console.error('Connection error:', error);
                 logMessage(`[ERROR] ${error.message}`, 'failed');
                 showNotification(`Connection failed: ${error.message}`, 'error');
-                
-                const btn = document.getElementById('connectBtn');
                 btn.textContent = '> CONNECT WALLET & INIT FHE SDK';
                 btn.disabled = false;
             }
