@@ -609,13 +609,29 @@
                 
                 // Generate EIP-712 signature
                 btn.innerHTML = '<span class="loading"></span> SIGNING EIP-712...';
-                logMessage('[EIP-712] Requesting signature for encrypted bid...', 'pending');
+                logMessage('[EIP-712] Requesting signature for public key...', 'pending');
                 
-                // According to contract, we sign the encryptedBid itself as publicKey
-                // This is the "public key" that was used to encrypt (for verification)
-                const publicKeyToSign = encryptedBidBytes32;
+                // Get the FHE public key from instance - this might be the full key object
+                const publicKeyObj = fhevmInstance.getPublicKey();
+                console.log('DEBUG - Public Key Object:', publicKeyObj);
                 
-                console.log('DEBUG - Public Key to sign:', publicKeyToSign, 'Length:', publicKeyToSign.length);
+                // Extract bytes32 hash from public key
+                // The public key is usually large, we need to hash it to bytes32
+                let publicKeyBytes32;
+                if (typeof publicKeyObj === 'string' && publicKeyObj.startsWith('0x') && publicKeyObj.length === 66) {
+                    // Already bytes32
+                    publicKeyBytes32 = publicKeyObj;
+                } else if (publicKeyObj.publicKey) {
+                    // If it's an object with publicKey property
+                    publicKeyBytes32 = ethers.utils.keccak256(publicKeyObj.publicKey);
+                } else {
+                    // Hash the public key to get bytes32
+                    publicKeyBytes32 = ethers.utils.keccak256(
+                        typeof publicKeyObj === 'string' ? publicKeyObj : JSON.stringify(publicKeyObj)
+                    );
+                }
+                
+                console.log('DEBUG - Public Key bytes32:', publicKeyBytes32, 'Length:', publicKeyBytes32.length);
                 
                 const domain = {
                     name: 'FHEAuction',
@@ -630,9 +646,9 @@
                     ]
                 };
                 
-                // Sign the encrypted bid as "public key" parameter
+                // Sign the public key hash
                 const value = {
-                    key: publicKeyToSign
+                    key: publicKeyBytes32
                 };
                 
                 const signature = await signer._signTypedData(domain, types, value);
@@ -646,25 +662,17 @@
                 const depositWei = ethers.utils.parseEther(depositAmountETH.toString());
                 
                 console.log('DEBUG - Transaction params:');
-                console.log('  encryptedBid:', encryptedBidBytes32, '(length:', encryptedBidBytes32.length, ')');
-                console.log('  proof length:', proof.length);
-                console.log('  publicKey:', publicKeyBytes32, '(length:', publicKeyBytes32.length, ')');
-                console.log('  signature:', signature, '(length:', signature.length, ')');
+                console.log('  encryptedBid:', encryptedBidBytes32);
+                console.log('  proof:', ethers.utils.hexlify(proof).substring(0, 50) + '...');
+                console.log('  publicKey:', publicKey.publicKey || publicKey);
+                console.log('  signature:', signature);
                 console.log('  value:', ethers.utils.formatEther(depositWei), 'ETH');
-                
-                // Validate lengths before sending
-                if (encryptedBidBytes32.length !== 66) {
-                    throw new Error(`Invalid encryptedBid length: ${encryptedBidBytes32.length}, expected 66 (0x + 64 hex chars)`);
-                }
-                if (publicKeyBytes32.length !== 66) {
-                    throw new Error(`Invalid publicKey length: ${publicKeyBytes32.length}, expected 66`);
-                }
                 
                 // Function signature: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature)
                 const tx = await fheAuctionContract.bid(
                     encryptedBidBytes32,           // bytes32 - encrypted handle
                     proof,                          // bytes - ZK proof
-                    publicKeyBytes32,               // bytes32 - FHE public key hash
+                    publicKey.publicKey || publicKey, // bytes32 - FHE public key
                     signature,                      // bytes - EIP-712 signature
                     { 
                         value: depositWei,
