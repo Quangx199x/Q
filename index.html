@@ -1,758 +1,1586 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔐 FHE Auction System - Sepolia FHEVM</title>
-    <!-- Tailwind CSS (Framework để tạo giao diện đẹp và responsive) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font chữ theo phong cách retro/terminal -->
-    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-    <!-- Thư viện Ethers.js v6 (để tương tác với Blockchain) -->
-    <script type="module">
-        // Import Ethers.js v6
-        import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.min.js";
-        window.ethers = ethers;
-    </script>
+    <title>FHE Auction - Privacy-Preserving Blockchain Auction</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fhevmjs@0.5.2/bundle.min.js"></script>
     <style>
-        :root {
-            --primary: #00ff00; /* Xanh lá neon */
-            --secondary: #ffff00; /* Vàng neon */
-            --background: #000000;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        body { font-family: 'VT323', monospace; background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%); color: var(--primary); min-height: 100vh; padding: 20px; }
-        .card {
-            background-color: #1a1a1a;
-            border: 2px solid var(--primary);
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-left img {
+            height: 40px;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .social-links a {
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .social-links a:hover {
+            opacity: 1;
+        }
+
+        .social-links img {
+            height: 24px;
+            width: 24px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .wallet-section {
+            background: white;
             border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
-            animation: fadeInUp 0.8s ease-out;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .button {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            background-color: var(--primary);
-            color: var(--background);
+
+        .wallet-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .wallet-address {
+            font-family: 'Monaco', monospace;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .role-owner {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .role-user {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 8px;
-            font-size: 1.1em;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            text-align: left;
+            transition: all 0.3s;
+            font-size: 0.95rem;
         }
-        .button:hover {
-            background-color: var(--secondary);
-            color: var(--background);
-            box-shadow: 0 0 10px var(--secondary);
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
         }
-        .button:disabled {
-            background-color: #333;
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+
+        .grid-3col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #43e97b;
+            color: white;
+        }
+
+        .status-ended {
+            background: #f5576c;
+            color: white;
+        }
+
+        .status-finalizing {
+            background: #ffa502;
+            color: white;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .info-label {
             color: #666;
-            cursor: not-allowed;
-            box-shadow: none;
+            font-weight: 500;
         }
-        .input {
+
+        .info-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .highlight-value {
+            color: #667eea;
+            font-size: 1.1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-input {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            background-color: #0d0d0d;
-            border: 1px solid var(--primary);
-            border-radius: 6px;
-            color: var(--primary);
-            font-size: 1em;
-            box-shadow: inset 0 0 5px rgba(0, 255, 0, 0.3);
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
         }
-        /* Custom animation (có thể dùng Tailwind config nhưng viết thẳng vào đây cho đơn giản) */
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
         }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+
+        .form-hint {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.25rem;
         }
+
+        .timer {
+            text-align: center;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .timer-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+
+        .timer-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .bidders-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .bidder-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .bidder-address {
+            font-family: 'Monaco', monospace;
+            font-size: 0.85rem;
+        }
+
+        .bidder-deposit {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
         .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .footer {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .footer-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .owner-panel {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .owner-panel .card-title {
+            color: white;
+        }
+
+        .owner-panel .form-label {
+            color: white;
+        }
+
+        .owner-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .history-item {
+            padding: 1rem;
+            border-left: 4px solid #667eea;
+            background: #f8f9fa;
+            margin-bottom: 0.75rem;
+            border-radius: 4px;
+        }
+
+        .history-time {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .grid-3col {
+                grid-template-columns: 1fr;
+            }
+
+            .wallet-section {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .timer-value {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container mx-auto p-4">
-        <!-- HEADER -->
-        <header class="text-center mb-10 animate-fadeIn">
-            <h1 class="text-5xl md:text-6xl font-bold mb-3 text-primary drop-shadow-[0_0_10px_#00ff00]">
-                🔐 FHE AUCTION SYSTEM
-                <span id="version" class="inline-block bg-primary text-black px-3 py-1 text-sm ml-3 rounded">
-                    v1.0
-                </span>
-            </h1>
-            <p class="text-xl text-secondary opacity-90">
-                Đấu giá Mù (Blind Auction) với Mã hóa Đồng cấu Hoàn toàn (FHE)
-            </p>
-        </header>
-
-        <!-- MAIN GRID -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-            <!-- 1. WALLET CARD -->
-            <div id="wallet-card" class="card col-span-1">
-                <h2 class="mb-5 text-2xl text-secondary border-b-2 border-dashed border-primary pb-2">🔗 KẾT NỐI VÍ</h2>
-                <div id="wallet-status">
-                    <p class="mb-2">Trạng thái: <span id="connect-status" class="text-red-500 font-bold">DISCONNECTED</span></p>
-                    <p class="mb-2">Mạng: <span id="network-status" class="text-red-500 font-bold">CHƯA XÁC ĐỊNH</span></p>
-                    <p id="account-info" class="text-sm break-words hidden">Địa chỉ ví: <span class="text-white" id="account-display"></span></p>
-                    <p id="owner-info" class="text-sm font-bold text-red-500 hidden">[OWNER MODE]</p>
-                </div>
-                <button id="connectBtn" class="button mt-4">> CONNECT WALLET</button>
-            </div>
-
-            <!-- 2. AUCTION STATUS -->
-            <div id="auction-status-card" class="card col-span-1">
-                <h2 class="mb-5 text-2xl text-secondary border-b-2 border-dashed border-primary pb-2">⏰ TÌNH TRẠNG ĐẤU GIÁ</h2>
-                <div class="space-y-3">
-                    <p>Trạng thái: <span id="auction-state" class="text-yellow-500">Đang tải...</span></p>
-                    <p>Vòng hiện tại: <span id="current-round">N/A</span></p>
-                    <p>Thời gian còn lại: <span id="time-left" class="text-red-500 font-bold">N/A</span></p>
-                    <p>Người thắng cuộc: <span id="winner-address" class="break-words text-white">Chưa xác định</span></p>
-                    <p>Giá thắng cuộc: <span id="winner-bid" class="text-secondary">N/A</span></p>
-                </div>
-            </div>
-
-            <!-- 3. PLACE BID CARD -->
-            <div id="bid-card" class="card col-span-1">
-                <h2 class="mb-5 text-2xl text-secondary border-b-2 border-dashed border-primary pb-2">💸 ĐẶT GIÁ MÙ (BLIND BID)</h2>
-                <label for="bid-input" class="block mb-2 text-sm text-white">Giá Thầu Của Bạn (ETH):</label>
-                <input type="number" id="bid-input" placeholder="Ví dụ: 0.5" class="input" step="any" min="0.00000001">
-                <p class="text-sm text-yellow-500 mb-2">
-                    Min Bid Deposit: <span id="min-bid-deposit">N/A</span> ETH.
-                </p>
-                <button id="bidBtn" class="button" disabled>> PLACE BID (FHE ENCRYPTED)</button>
-                <p class="text-xs mt-2 text-gray-400">
-                    *Giá thầu của bạn sẽ được **mã hóa hoàn toàn** (FHE) trước khi gửi lên mạng.
-                </p>
-            </div>
-
-            <!-- 4. REFUND CARD -->
-            <div id="refund-card" class="card lg:col-span-1">
-                <h2 class="mb-5 text-2xl text-secondary border-b-2 border-dashed border-primary pb-2">💰 HOÀN TIỀN (REFUNDS)</h2>
-                <p class="mb-3 text-sm">Chỉ có thể hoàn tiền nếu bạn KHÔNG phải là người thắng cuộc và đấu giá đã kết thúc.</p>
-                <button id="claimRefundBtn" class="button btn-warning" disabled>> CLAIM YOUR REFUND</button>
-                <div class="mt-4 pt-4 border-t border-dashed border-gray-700">
-                    <label for="batch-addresses-input" class="block mb-2 text-sm text-white">Hoàn tiền hàng loạt (Addresses, cách nhau bằng dấu phẩy):</label>
-                    <input type="text" id="batch-addresses-input" placeholder="0x..., 0x..." class="input">
-                    <button id="batchRefundBtn" class="button" disabled>> BATCH CLAIM REFUNDS</button>
-                </div>
-            </div>
-
-            <!-- 5. OWNER PANEL (ẨN MẶC ĐỊNH) -->
-            <div id="owner-panel" class="card lg:col-span-2 hidden">
-                <h2 class="mb-5 text-2xl text-red-500 border-b-2 border-dashed border-red-500 pb-2">🚨 OWNER PANEL (CHỈ DÀNH CHO CHỦ HỢP ĐỒNG)</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <button id="requestFinalizeBtn" class="button bg-red-800 hover:bg-red-600" disabled>> YÊU CẦU KẾT THÚC (REQUEST FINALIZE)</button>
-                        <p class="text-xs text-gray-400 mt-1">Yêu cầu KMS giải mã giá thắng cuộc.</p>
-                    </div>
-                    <div>
-                        <button id="emergencyEndBtn" class="button bg-red-900 hover:bg-red-700" disabled>> KẾT THÚC KHẨN CẤP</button>
-                        <p class="text-xs text-gray-400 mt-1">Dừng đấu giá ngay lập tức.</p>
-                    </div>
-                    <div class="col-span-full flex gap-2">
-                        <button id="pauseBtn" class="button w-1/2 bg-yellow-800 hover:bg-yellow-600" disabled>> TẠM DỪNG</button>
-                        <button id="unpauseBtn" class="button w-1/2 bg-green-800 hover:bg-green-600" disabled style="display: none;">> KHỞI ĐỘNG LẠI</button>
-                    </div>
-                    <div class="col-span-full">
-                        <input type="text" id="newBeneficiaryInput" placeholder="Địa chỉ người thụ hưởng mới" class="input mt-2">
-                        <button id="updateBeneficiaryBtn" class="button bg-blue-800 hover:bg-blue-600" disabled>> CẬP NHẬT NGƯỜI THỤ HƯỞNG</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 6. TRANSACTION LOG -->
-            <div class="card col-span-full">
-                <h2 class="mb-5 text-2xl text-secondary border-b-2 border-dashed border-primary pb-2">📜 NHẬT KÝ GIAO DỊCH (TRANSACTION LOG)</h2>
-                <div id="log-output" class="h-64 overflow-y-scroll bg-[#0d0d0d] p-3 text-sm rounded-lg border border-gray-700">
-                    <p class="text-yellow-500">[INIT] Chào mừng đến với FHE Auction. Vui lòng kết nối ví.</p>
-                </div>
-            </div>
-
+    <!-- Header -->
+    <div class="header">
+        <div class="logo-left">
+            <img src="https://www.zama.ai/images/logo.svg" alt="Zama" />
+            <span style="font-weight: 700; font-size: 1.2rem;">FHE Auction</span>
         </div>
-
-        <!-- FOOTER -->
-        <footer class="text-center text-sm mt-10 opacity-70">
-            <p>Contract Address:
-                <a id="contract-link" href="#" target="_blank" class="text-secondary hover:underline">
-                    0x3023a7Dc6f4732c4004C3070A12dD6e796cD3C93
-                </a>
-            </p>
-            <p>Powered by <span class="text-primary font-bold">Zama FHEVM</span> | Fully Homomorphic Encryption</p>
-        </footer>
+        <div class="social-links">
+            <a href="https://twitter.com/zama_fhe" target="_blank" rel="noopener">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E" alt="X" />
+            </a>
+            <a href="https://github.com/zama-ai" target="_blank" rel="noopener">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z'/%3E%3C/svg%3E" alt="GitHub" />
+            </a>
+        </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
-    <script type="module">
-        import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.min.js";
-        // KHÔNG THỂ DÙNG TRỰC TIẾP TỪ CDN TRONG TỆP ĐƠN NÀY
-        // Thay vào đó, chúng ta sẽ tạo các hàm giả định cho FHE/Relayer.
-        // Trong môi trường React/Node thực tế, bạn sẽ dùng:
-        // import * as fhe from '@fhevm/sdk';
-        // import { createInstance } from '@zama-fhe/relayer-sdk';
+    <div class="container">
+        <!-- Wallet Connection -->
+        <div class="wallet-section" id="walletSection">
+            <div class="wallet-info">
+                <div id="connectionStatus">
+                    <button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>
+                </div>
+            </div>
+        </div>
 
-        // =========================================================================
-        // ============== CÁC HẰNG SỐ VÀ CẤU HÌNH (Dựa trên contracts.ts) ===========
-        // =========================================================================
+        <!-- Alert Area -->
+        <div id="alertArea"></div>
 
-        const CONTRACT_ADDRESS = '0x3023a7Dc6f4732c4004C3070A12dD6e796cD3C93';
-        const SEPOLIA_CHAIN_ID = 11155111; // ID mạng Sepolia FHEVM
+        <!-- Auction Timer -->
+        <div class="timer" id="auctionTimer">
+            <div class="timer-label">Auction Ends In</div>
+            <div class="timer-value" id="timerValue">--:--:--</div>
+            <div class="timer-label" id="timerSubtext">Round #<span id="roundNumber">1</span></div>
+        </div>
 
-        // ABI (Chỉ bao gồm các hàm cần thiết cho UI)
-        const FHE_AUCTION_ABI = [
-            // View Functions
-            { "inputs": [], "name": "owner", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
-            { "inputs": [], "name": "minBidDeposit", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
-            { "inputs": [], "name": "auctionEndTime", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
-            { "inputs": [], "name": "auctionState", "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }], "stateMutability": "view", "type": "function" },
-            { "inputs": [], "name": "currentRound", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
-            { "inputs": [], "name": "winner", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
-            { "inputs": [{ "internalType": "address", "name": "bidder", "type": "address" }], "name": "hasClaimedRefund", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" },
-            { "inputs": [], "name": "getEncryptedWinningBid", "outputs": [{ "internalType": "bytes", "name": "", "type": "bytes" }], "stateMutability": "view", "type": "function" }, // Để check winner bid
-            { "inputs": [], "name": "getDecryptedWinningBid", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+        <!-- Main Content Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('user')">User Dashboard</button>
+            <button class="tab" id="ownerTab" style="display: none;" onclick="switchTab('owner')">Owner Panel</button>
+        </div>
 
-            // Write Functions
-            { "inputs": [{ "internalType": "bytes", "name": "encryptedBid", "type": "bytes" }, { "internalType": "bytes", "name": "proof", "type": "bytes" }], "name": "bid", "outputs": [], "stateMutability": "payable", "type": "function" },
-            { "inputs": [], "name": "requestFinalize", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [], "name": "forceFinalize", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [], "name": "emergencyEnd", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [], "name": "claimRefund", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [{ "internalType": "address[]", "name": "bidders", "type": "address[]" }], "name": "batchClaimRefunds", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [{ "internalType": "address", "name": "newBeneficiary", "type": "address" }], "name": "updateBeneficiary", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [], "name": "pauseAuction", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [], "name": "unpauseAuction", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+        <!-- User Dashboard -->
+        <div class="tab-content active" id="userContent">
+            <div class="grid-3col">
+                <!-- Auction Info Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Auction Info</h3>
+                        <span class="status-badge status-active" id="auctionStatus">Active</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Current Round</span>
+                        <span class="info-value" id="infoRound">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">End Block</span>
+                        <span class="info-value" id="infoEndBlock">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total Bidders</span>
+                        <span class="info-value highlight-value" id="infoBidders">0</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Min Deposit</span>
+                        <span class="info-value" id="infoMinDeposit">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Platform Fee</span>
+                        <span class="info-value">2.5%</span>
+                    </div>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="refreshAuctionInfo()">
+                        Refresh Info
+                    </button>
+                </div>
 
-            // Events (Quan trọng để theo dõi)
-            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "bidder", "type": "address" }, { "indexed": false, "internalType": "bytes", "name": "encryptedBid", "type": "bytes" }], "name": "NewBid", "type": "event" },
-            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "recipient", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "RefundClaimed", "type": "event" },
-            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "winner", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "bid", "type": "uint256" }], "name": "AuctionFinalized", "type": "event" },
-            { "anonymous": false, "inputs": [{ "indexed": false, "internalType": "uint8", "name": "newState", "type": "uint8" }], "name": "AuctionStateChanged", "type": "event" }
-        ];
+                <!-- Place Bid Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Place Bid</h3>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bid Amount (ETH)</label>
+                        <input type="number" class="form-input" id="bidAmount" placeholder="0.1" step="0.001" />
+                        <div class="form-hint">Your encrypted bid amount (private)</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Deposit Amount (ETH)</label>
+                        <input type="number" class="form-input" id="depositAmount" placeholder="0.1" step="0.001" />
+                        <div class="form-hint">Must be ≥ bid amount to win</div>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%;" onclick="placeBid()">
+                        🔒 Submit Encrypted Bid
+                    </button>
+                    <div class="info-row" style="margin-top: 1rem;">
+                        <span class="info-label">Your Deposit</span>
+                        <span class="info-value" id="userDeposit">0 ETH</span>
+                    </div>
+                    <button class="btn btn-danger" style="width: 100%; margin-top: 0.5rem;" onclick="cancelBid()">
+                        Cancel My Bid
+                    </button>
+                </div>
 
-        // MAPPING TRẠNG THÁI ĐẤU GIÁ (Dựa trên enum trong contract)
-        const AUCTION_STATES = {
+                <!-- Your Status Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Your Status</h3>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Has Bid This Round</span>
+                        <span class="info-value" id="userHasBid">No</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Bid Cancelled</span>
+                        <span class="info-value" id="userCancelled">No</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Pending Refund</span>
+                        <span class="info-value highlight-value" id="userRefund">0 ETH</span>
+                    </div>
+                    <button class="btn btn-success" style="width: 100%; margin-top: 1rem;" onclick="claimRefund()">
+                        💰 Claim Refund
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="openHistoryModal()">
+                        📜 View Bid History
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Bidders -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Active Bidders</h3>
+                    <span class="info-value" id="bidderCount">0 bidders</span>
+                </div>
+                <div class="bidders-list" id="biddersList">
+                    <div class="loading">No bidders yet</div>
+                </div>
+            </div>
+
+            <!-- Winner Info (if finalized) -->
+            <div class="card" id="winnerCard" style="display: none;">
+                <div class="card-header">
+                    <h3 class="card-title">🏆 Auction Winner</h3>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Winner Address</span>
+                    <span class="info-value" id="winnerAddress">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Winning Bid</span>
+                    <span class="info-value highlight-value" id="winningBid">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Owner Panel -->
+        <div class="tab-content" id="ownerContent">
+            <div class="owner-panel card">
+                <h3 class="card-title">⚙️ Owner Controls</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Update Beneficiary</label>
+                    <input type="text" class="form-input" id="newBeneficiary" placeholder="0x..." />
+                    <button class="btn btn-primary" style="margin-top: 0.5rem;" onclick="updateBeneficiary()">
+                        Update Beneficiary
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Update Fee Collector</label>
+                    <input type="text" class="form-input" id="newFeeCollector" placeholder="0x..." />
+                    <button class="btn btn-primary" style="margin-top: 0.5rem;" onclick="updateFeeCollector()">
+                        Update Fee Collector
+                    </button>
+                </div>
+
+                <div class="owner-actions">
+                    <button class="btn btn-success" onclick="requestFinalize()">
+                        ✅ Finalize Auction
+                    </button>
+                    <button class="btn btn-danger" onclick="pauseAuction()">
+                        ⏸️ Pause Auction
+                    </button>
+                    <button class="btn btn-success" onclick="unpauseAuction()">
+                        ▶️ Unpause Auction
+                    </button>
+                    <button class="btn btn-secondary" onclick="withdrawFees()">
+                        💸 Withdraw Fees
+                    </button>
+                    <button class="btn btn-danger" onclick="emergencyEnd()">
+                        🚨 Emergency End
+                    </button>
+                    <button class="btn btn-danger" onclick="forceFinalize()">
+                        🔧 Force Finalize
+                    </button>
+                </div>
+
+                <div class="info-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(255,255,255,0.3);">
+                    <span class="form-label">Total Collected Fees</span>
+                    <span class="info-value" id="totalFees" style="color: white;">-</span>
+                </div>
+            </div>
+
+            <!-- Contract Info -->
+            <div class="grid-3col">
+                <div class="card">
+                    <h3 class="card-title">Contract Addresses</h3>
+                    <div class="info-row">
+                        <span class="info-label">Owner</span>
+                        <span class="info-value" style="font-size: 0.8rem;" id="contractOwner">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Beneficiary</span>
+                        <span class="info-value" style="font-size: 0.8rem;" id="contractBeneficiary">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Fee Collector</span>
+                        <span class="info-value" style="font-size: 0.8rem;" id="contractFeeCollector">-</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Contract State</h3>
+                    <div class="info-row">
+                        <span class="info-label">Paused</span>
+                        <span class="info-value" id="contractPaused">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Auction State</span>
+                        <span class="info-value" id="contractState">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Decryption Pending</span>
+                        <span class="info-value" id="decryptionPending">-</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Constants</h3>
+                    <div class="info-row">
+                        <span class="info-label">Min Bid Increment</span>
+                        <span class="info-value">1 Gwei</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Base Duration</span>
+                        <span class="info-value">7200 blocks</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Extension Duration</span>
+                        <span class="info-value">75 blocks</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="card-title">Bid History</h3>
+                <button class="modal-close" onclick="closeHistoryModal()">×</button>
+            </div>
+            <div id="historyContent">
+                <div class="loading">Loading history...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-content">
+            <p>Powered by <a href="https://www.zama.ai" target="_blank" rel="noopener" class="footer-link">Zama</a> - Fully Homomorphic Encryption</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
+                Privacy-preserving blockchain auction using FHE technology
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Contract Configuration
+        const CONTRACT_ADDRESS = '0x3023a7dc6f4732c4004c3070a12dd6e796cd3c93'; // Replace with your deployed contract address
+        const CONTRACT_ABI = [{"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"},{"internalType":"address","name":"_gatewayContract","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AuctionAlreadyFinalized","type":"error"},{"inputs":[],"name":"AuctionNotActive","type":"error"},{"inputs":[],"name":"AuctionStillActive","type":"error"},{"inputs":[],"name":"ContractPaused","type":"error"},{"inputs":[],"name":"DecryptionAlreadyPending","type":"error"},{"inputs":[],"name":"ECDSAInvalidSignature","type":"error"},{"inputs":[{"internalType":"uint256","name":"length","type":"uint256"}],"name":"ECDSAInvalidSignatureLength","type":"error"},{"inputs":[{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"ECDSAInvalidSignatureS","type":"error"},{"inputs":[],"name":"EmergencyDelayNotMet","type":"error"},{"inputs":[],"name":"HandlesAlreadySavedForRequestID","type":"error"},{"inputs":[],"name":"InsufficientDeposit","type":"error"},{"inputs":[],"name":"InvalidAddress","type":"error"},{"inputs":[],"name":"InvalidAmount","type":"error"},{"inputs":[],"name":"InvalidDecryptionData","type":"error"},{"inputs":[],"name":"InvalidKMSSignatures","type":"error"},{"inputs":[],"name":"InvalidShortString","type":"error"},{"inputs":[],"name":"InvalidSignature","type":"error"},{"inputs":[],"name":"InvalidState","type":"error"},{"inputs":[],"name":"MaxBiddersReached","type":"error"},{"inputs":[],"name":"NoBidders","type":"error"},{"inputs":[],"name":"NoHandleFoundForRequestID","type":"error"},{"inputs":[],"name":"NoRefundAvailable","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"inputs":[],"name":"Unauthorized","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":true,"internalType":"address","name":"winner","type":"address"},{"indexed":false,"internalType":"uint256","name":"finalBid","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"AuctionFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"oldBeneficiary","type":"address"},{"indexed":true,"internalType":"address","name":"newBeneficiary","type":"address"}],"name":"BeneficiaryUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"BidReceived","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"},{"indexed":false,"internalType":"bytes32[]","name":"handles","type":"bytes32[]"}],"name":"DecryptionRequested","type":"event"},{"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"string","name":"reason","type":"string"}],"name":"EmergencyActivated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundAvailable","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"enum FHEAuction.AuctionState","name":"from","type":"uint8"},{"indexed":false,"internalType":"enum FHEAuction.AuctionState","name":"to","type":"uint8"}],"name":"StateChanged","type":"event"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"AUCTION_DURATION","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"BATCH_REFUND_SIZE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"EMERGENCY_DELAY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"KMS_THRESHOLD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MAX_BIDDERS_PER_ROUND","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionState","outputs":[{"internalType":"enum FHEAuction.AuctionState","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address[]","name":"claimants","type":"address[]"}],"name":"batchClaimRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"beneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"inputProof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"claimRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"deposits","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"emergencyWithdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"forceFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"gatewayContract","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAuctionInfo","outputs":[{"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum FHEAuction.AuctionState","name":"state","type":"uint8"},{"internalType":"uint256","name":"maxDeposit","type":"uint256"},{"internalType":"address","name":"leadBidder","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"getBidderInfo","outputs":[{"internalType":"uint256","name":"deposit","type":"uint256"},{"internalType":"bool","name":"hasBidded","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getProtocolId","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"getRoundBidders","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isEmergencyAvailable","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pauserSet","outputs":[{"internalType":"contract IPauserSet","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"pendingRefunds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"protocolId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newBeneficiary","type":"address"}],"name":"updateBeneficiary","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"winningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"stateMutability":"payable","type":"receive"}];
+
+        // Global Variables
+        let provider;
+        let signer;
+        let contract;
+        let fhevmInstance;
+        let userAddress;
+        let isOwner = false;
+        let timerInterval;
+
+        // Auction State Enum
+        const AuctionState = {
             0: 'Active',
-            1: 'Finalizing', // Đang yêu cầu giải mã
-            2: 'Decrypted',  // Đã có giá thắng cuộc giải mã
-            3: 'Finished',   // Đã hoàn thành (có thể rút tiền)
-            4: 'Paused'
+            1: 'Ended',
+            2: 'Finalizing',
+            3: 'Finalized',
+            4: 'Emergency'
         };
 
-        // =========================================================================
-        // ======================= BIẾN TOÀN CỤC VÀ HÀM TIỆN ÍCH =====================
-        // =========================================================================
-
-        let provider, signer, contract, auctionOwner, currentAccount;
-        let auctionInterval;
-
-        // Hàm giả định FHE: Trong dự án thực tế, bạn sẽ khởi tạo fhe.js và tạo proof ở đây.
-        // (Không thể dùng trực tiếp trong tệp HTML đơn này)
-        const mockFHE = {
-            // Hàm này sẽ dùng @fhevm/sdk để mã hóa giá thầu của bạn
-            encryptBid: (bidWei) => {
-                logMessage(`[FHE] Đang mã hóa giá ${ethers.formatEther(bidWei)} ETH...`, 'info');
-                // Trả về một mã hóa placeholder và một proof placeholder
-                return {
-                    encryptedBid: ethers.toUtf8Bytes("encrypted_bid_data_" + bidWei.toString()),
-                    proof: ethers.toUtf8Bytes("proof_data_" + bidWei.toString()),
-                };
-            }
-        };
-
-        // Hàm log thông báo ra UI
-        function logMessage(message, type = 'info') {
-            const logOutput = document.getElementById('log-output');
-            const p = document.createElement('p');
-            const timestamp = new Date().toLocaleTimeString();
-
-            let color = 'text-gray-400';
-            if (type === 'success') color = 'text-green-500';
-            else if (type === 'error') color = 'text-red-500';
-            else if (type === 'info') color = 'text-yellow-500';
-            else if (type === 'confirmed') color = 'text-white';
-
-            p.className = color;
-            p.innerHTML = `[${timestamp} | ${type.toUpperCase()}] ${message}`;
-
-            // Thêm vào đầu (mới nhất nằm trên)
-            if (logOutput.firstChild) {
-                logOutput.insertBefore(p, logOutput.firstChild);
+        // Initialize on page load
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                console.log('MetaMask detected');
             } else {
-                logOutput.appendChild(p);
+                showAlert('Please install MetaMask to use this application', 'error');
             }
-        }
+        });
 
-        // =========================================================================
-        // ======================= QUẢN LÝ VÍ VÀ KẾT NỐI =============================
-        // =========================================================================
-
+        // Connect Wallet
         async function connectWallet() {
-            if (typeof window.ethereum === 'undefined') {
-                logMessage('MetaMask không được tìm thấy. Vui lòng cài đặt MetaMask.', 'error');
-                return;
-            }
-
             try {
-                // Ethers v6: Sử dụng BrowserProvider
-                provider = new ethers.BrowserProvider(window.ethereum);
-
-                // Kiểm tra và chuyển mạng (MANDATORY cho FHEVM)
-                const network = await provider.getNetwork();
-                if (network.chainId !== BigInt(SEPOLIA_CHAIN_ID)) {
-                    logMessage('Sai mạng! Vui lòng chuyển sang Sepolia FHEVM (Chain ID: 11155111).', 'error');
-                    // Cố gắng chuyển mạng tự động (tùy chọn)
-                    try {
-                        await window.ethereum.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: ethers.toQuantity(SEPOLIA_CHAIN_ID) }],
-                        });
-                        // Sau khi chuyển, tải lại trang để kết nối lại
-                        window.location.reload();
-                        return;
-                    } catch (switchError) {
-                        logMessage(`Không thể chuyển mạng tự động: ${switchError.message}`, 'error');
-                    }
+                if (typeof window.ethereum === 'undefined') {
+                    showAlert('Please install MetaMask', 'error');
+                    return;
                 }
-                
-                // Yêu cầu tài khoản
-                await provider.send("eth_requestAccounts", []);
-                signer = await provider.getSigner();
-                currentAccount = await signer.getAddress();
-                contract = new ethers.Contract(CONTRACT_ADDRESS, FHE_AUCTION_ABI, signer);
-                
-                // Lấy Owner để kiểm tra trạng thái
-                auctionOwner = await contract.owner();
-                const isOwner = currentAccount.toLowerCase() === auctionOwner.toLowerCase();
 
-                // Cập nhật UI
-                document.getElementById('connect-status').textContent = 'CONNECTED';
-                document.getElementById('connect-status').className = 'text-green-500 font-bold';
-                document.getElementById('network-status').textContent = `Sepolia FHEVM (${ethers.toNumber(network.chainId)})`;
-                document.getElementById('network-status').className = 'text-green-500 font-bold';
-                document.getElementById('account-display').textContent = currentAccount;
-                document.getElementById('account-info').classList.remove('hidden');
-                document.getElementById('connectBtn').textContent = '> DISCONNECT WALLET';
-                document.getElementById('connectBtn').onclick = disconnectWallet;
-                document.getElementById('bidBtn').disabled = false;
-                document.getElementById('claimRefundBtn').disabled = false;
-                document.getElementById('batchRefundBtn').disabled = false;
+                // Request account access
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
 
+                // Initialize contract
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+                // Initialize FHE
+                await initializeFHE();
+
+                // Check if user is owner
+                const ownerAddress = await contract.owner();
+                isOwner = userAddress.toLowerCase() === ownerAddress.toLowerCase();
+
+                // Update UI
+                updateWalletUI();
+                
                 if (isOwner) {
-                    document.getElementById('owner-panel').classList.remove('hidden');
-                    document.getElementById('owner-info').classList.remove('hidden');
-                    document.getElementById('requestFinalizeBtn').disabled = false;
-                    document.getElementById('emergencyEndBtn').disabled = false;
-                    document.getElementById('pauseBtn').disabled = false;
-                    document.getElementById('unpauseBtn').disabled = false;
-                    document.getElementById('updateBeneficiaryBtn').disabled = false;
+                    document.getElementById('ownerTab').style.display = 'block';
                 }
 
-                logMessage(`Kết nối thành công với ví: ${currentAccount}`, 'success');
+                // Load auction data
+                await refreshAuctionInfo();
+                await loadBidders();
+                await loadUserInfo();
                 
-                // Bắt đầu tải dữ liệu đấu giá và lắng nghe sự kiện
-                loadAuctionData();
+                // Start timer
+                startTimer();
+
+                // Listen for events
                 setupEventListeners();
 
+                showAlert('Wallet connected successfully!', 'success');
+
             } catch (error) {
-                logMessage(`Lỗi kết nối ví: ${error.message}`, 'error');
-                // Tắt trạng thái owner nếu có lỗi
-                document.getElementById('owner-panel').classList.add('hidden');
+                console.error('Error connecting wallet:', error);
+                showAlert('Failed to connect wallet: ' + error.message, 'error');
             }
         }
 
+        // Initialize FHE Instance
+        async function initializeFHE() {
+            try {
+                showAlert('Initializing FHE encryption...', 'info');
+                
+                // Create FHE instance
+                fhevmInstance = await window.fhevmjs.createInstance({
+                    chainId: 11155111, // Sepolia
+                    networkUrl: 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY', // Replace with your Infura key
+                    gatewayUrl: 'https://gateway.sepolia.zama.ai'
+                });
+
+                console.log('FHE instance initialized');
+            } catch (error) {
+                console.error('Error initializing FHE:', error);
+                showAlert('Failed to initialize FHE encryption', 'error');
+            }
+        }
+
+        // Update Wallet UI
+        function updateWalletUI() {
+            const statusDiv = document.getElementById('connectionStatus');
+            const roleClass = isOwner ? 'role-owner' : 'role-user';
+            const roleText = isOwner ? 'Owner' : 'User';
+            
+            statusDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div>
+                        <div class="wallet-address">${userAddress.slice(0, 6)}...${userAddress.slice(-4)}</div>
+                        <span class="role-badge ${roleClass}">${roleText}</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="disconnectWallet()">Disconnect</button>
+                </div>
+            `;
+        }
+
+        // Disconnect Wallet
         function disconnectWallet() {
             provider = null;
             signer = null;
             contract = null;
-            currentAccount = null;
+            userAddress = null;
+            isOwner = false;
             
-            document.getElementById('connect-status').textContent = 'DISCONNECTED';
-            document.getElementById('connect-status').className = 'text-red-500 font-bold';
-            document.getElementById('account-info').classList.add('hidden');
-            document.getElementById('owner-info').classList.add('hidden');
-            document.getElementById('connectBtn').textContent = '> CONNECT WALLET';
-            document.getElementById('connectBtn').onclick = connectWallet;
-            document.getElementById('bidBtn').disabled = true;
-            document.getElementById('claimRefundBtn').disabled = true;
-            document.getElementById('batchRefundBtn').disabled = true;
-            document.getElementById('owner-panel').classList.add('hidden');
+            document.getElementById('connectionStatus').innerHTML = 
+                '<button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>';
             
-            clearInterval(auctionInterval);
-            logMessage('Đã ngắt kết nối ví.', 'info');
+            document.getElementById('ownerTab').style.display = 'none';
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            showAlert('Wallet disconnected', 'info');
         }
 
-        // =========================================================================
-        // ======================== TẢI VÀ HIỂN THỊ DỮ LIỆU ===========================
-        // =========================================================================
-
-        async function loadAuctionData() {
+        // Refresh Auction Info
+        async function refreshAuctionInfo() {
             if (!contract) return;
 
             try {
-                const [
-                    minBidWei,
-                    endTime,
-                    state,
-                    round,
-                    winnerAddress,
-                    winningBidWei,
-                    encryptedWinningBidBytes
-                ] = await Promise.all([
-                    contract.minBidDeposit(),
-                    contract.auctionEndTime(),
-                    contract.auctionState(),
-                    contract.currentRound(),
-                    contract.winner(),
-                    contract.getDecryptedWinningBid().catch(() => 0n), // Bắt lỗi nếu chưa giải mã
-                    contract.getEncryptedWinningBid().catch(() => ethers.toUtf8Bytes("0x"))
-                ]);
-                
-                // Trạng thái đấu giá
-                const stateText = AUCTION_STATES[ethers.toNumber(state)] || 'Lỗi';
-                document.getElementById('auction-state').textContent = stateText;
-                
-                // Giá trị min bid
-                const minBidEth = ethers.formatEther(minBidWei);
-                document.getElementById('min-bid-deposit').textContent = `${minBidEth} ETH`;
+                const info = await contract.getAuctionInfo();
+                const minDeposit = await contract.minBidDeposit();
+                const estimatedEnd = await contract.getEstimatedEndTime();
+                const currentBlock = await provider.getBlockNumber();
 
-                // Vòng
-                document.getElementById('current-round').textContent = ethers.toNumber(round).toString();
+                // Update UI
+                document.getElementById('roundNumber').textContent = info[0].toString();
+                document.getElementById('infoRound').textContent = info[0].toString();
+                document.getElementById('infoEndBlock').textContent = info[1].toString();
+                document.getElementById('infoBidders').textContent = info[5].toString();
+                document.getElementById('infoMinDeposit').textContent = 
+                    ethers.utils.formatEther(minDeposit) + ' ETH';
+
+                // Update status badge
+                const stateNum = info[2];
+                const statusBadge = document.getElementById('auctionStatus');
+                statusBadge.textContent = AuctionState[stateNum];
+                statusBadge.className = 'status-badge';
                 
-                // Người thắng cuộc và giá
-                document.getElementById('winner-address').textContent = winnerAddress === ethers.ZeroAddress ? 'Chưa xác định' : winnerAddress;
-                
-                if (ethers.toNumber(state) >= 2 && ethers.formatEther(winningBidWei) !== '0.0') {
-                    // Trạng thái Decrypted hoặc Finished
-                    document.getElementById('winner-bid').textContent = `${ethers.formatEther(winningBidWei)} ETH`;
-                    document.getElementById('winner-address').textContent = winnerAddress === ethers.ZeroAddress ? 'Không có ai thắng' : winnerAddress;
-                } else if (ethers.toNumber(state) === 1 || ethers.toNumber(encryptedWinningBidBytes.length) > 2) {
-                    // Trạng thái Finalizing hoặc có giá đã mã hóa
-                    document.getElementById('winner-bid').textContent = 'Đang giải mã...';
-                } else {
-                    document.getElementById('winner-bid').textContent = 'N/A (Chưa kết thúc)';
+                if (stateNum === 0) {
+                    statusBadge.classList.add('status-active');
+                } else if (stateNum === 1) {
+                    statusBadge.classList.add('status-ended');
+                } else if (stateNum === 2) {
+                    statusBadge.classList.add('status-finalizing');
                 }
 
-                // Cập nhật Countdown
-                clearInterval(auctionInterval);
-                if (stateText === 'Active') {
-                    auctionInterval = setInterval(() => updateCountdown(ethers.toNumber(endTime)), 1000);
-                    updateCountdown(ethers.toNumber(endTime));
+                // Update winner info if finalized
+                if (stateNum === 3) {
+                    const winner = await contract.currentLeadBidder();
+                    const winBid = await contract.winningBid();
+                    
+                    if (winner !== ethers.constants.AddressZero) {
+                        document.getElementById('winnerCard').style.display = 'block';
+                        document.getElementById('winnerAddress').textContent = 
+                            winner.slice(0, 6) + '...' + winner.slice(-4);
+                        document.getElementById('winningBid').textContent = 
+                            ethers.utils.formatEther(winBid) + ' ETH';
+                    }
                 } else {
-                    document.getElementById('time-left').textContent = 'Đã kết thúc';
+                    document.getElementById('winnerCard').style.display = 'none';
+                }
+
+                // Update owner panel if owner
+                if (isOwner) {
+                    await updateOwnerPanel();
                 }
 
             } catch (error) {
-                logMessage(`Lỗi tải dữ liệu đấu giá: ${error.message}`, 'error');
+                console.error('Error refreshing auction info:', error);
+                showAlert('Failed to refresh auction info', 'error');
             }
         }
 
-        function updateCountdown(endTimeTimestamp) {
-            const now = Math.floor(Date.now() / 1000);
-            const timeLeft = endTimeTimestamp - now;
+        // Load Bidders List
+        async function loadBidders() {
+            if (!contract) return;
 
-            if (timeLeft <= 0) {
-                clearInterval(auctionInterval);
-                document.getElementById('time-left').textContent = 'ĐÃ HẾT GIỜ';
-                // Tải lại dữ liệu sau khi hết giờ để cập nhật trạng thái
-                setTimeout(loadAuctionData, 5000);
-                return;
+            try {
+                const bidders = await contract.getRoundBidders();
+                const listDiv = document.getElementById('biddersList');
+                
+                document.getElementById('bidderCount').textContent = bidders.length + ' bidders';
+
+                if (bidders.length === 0) {
+                    listDiv.innerHTML = '<div class="loading">No bidders yet</div>';
+                    return;
+                }
+
+                let html = '';
+                for (const bidder of bidders) {
+                    const info = await contract.getBidderInfo(bidder);
+                    const deposit = ethers.utils.formatEther(info[0]);
+                    const cancelled = info[2];
+
+                    if (!cancelled) {
+                        html += `
+                            <div class="bidder-item">
+                                <span class="bidder-address">${bidder.slice(0, 8)}...${bidder.slice(-6)}</span>
+                                <span class="bidder-deposit">${deposit} ETH</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                listDiv.innerHTML = html || '<div class="loading">No active bidders</div>';
+
+            } catch (error) {
+                console.error('Error loading bidders:', error);
             }
-
-            const days = Math.floor(timeLeft / (3600 * 24));
-            const hours = Math.floor((timeLeft % (3600 * 24)) / 3600);
-            const minutes = Math.floor((timeLeft % 3600) / 60);
-            const seconds = Math.floor(timeLeft % 60);
-
-            document.getElementById('time-left').textContent = 
-                `${days.toString().padStart(2, '0')}D ${hours.toString().padStart(2, '0')}H ${minutes.toString().padStart(2, '0')}M ${seconds.toString().padStart(2, '0')}S`;
         }
-        
-        // =========================================================================
-        // ============================ HÀM TƯƠNG TÁC CONTRACT ========================
-        // =========================================================================
 
-        // --- 1. ĐẶT GIÁ (BID) ---
+        // Load User Info
+        async function loadUserInfo() {
+            if (!contract || !userAddress) return;
+
+            try {
+                const info = await contract.getBidderInfo(userAddress);
+                const refund = await contract.pendingRefunds(userAddress);
+
+                document.getElementById('userDeposit').textContent = 
+                    ethers.utils.formatEther(info[0]) + ' ETH';
+                document.getElementById('userHasBid').textContent = info[1] ? 'Yes' : 'No';
+                document.getElementById('userCancelled').textContent = info[2] ? 'Yes' : 'No';
+                document.getElementById('userRefund').textContent = 
+                    ethers.utils.formatEther(refund) + ' ETH';
+
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+
+        // Place Bid
         async function placeBid() {
-            if (!contract || !signer) {
-                logMessage('Vui lòng kết nối ví trước.', 'error');
-                return;
-            }
-
-            const bidInput = document.getElementById('bid-input');
-            const bidEth = bidInput.value;
-
-            if (isNaN(bidEth) || parseFloat(bidEth) <= 0) {
-                logMessage('Vui lòng nhập giá thầu hợp lệ.', 'error');
+            if (!contract || !fhevmInstance) {
+                showAlert('Please connect wallet first', 'error');
                 return;
             }
 
             try {
-                const bidWei = ethers.parseEther(bidEth);
-                const minBidDeposit = await contract.minBidDeposit();
-                
-                // Kiểm tra điều kiện Deposit = BidValue >= MinBidDeposit
-                if (bidWei < minBidDeposit) {
-                    logMessage(`Giá thầu phải lớn hơn hoặc bằng Min Bid Deposit: ${ethers.formatEther(minBidDeposit)} ETH.`, 'error');
+                const bidAmount = document.getElementById('bidAmount').value;
+                const depositAmount = document.getElementById('depositAmount').value;
+
+                if (!bidAmount || !depositAmount) {
+                    showAlert('Please enter both bid and deposit amounts', 'error');
                     return;
                 }
 
-                // BƯỚC FHE: Mã hóa và tạo Proof (Sử dụng hàm mock)
-                // Trong code thực tế, bạn sẽ dùng fhe.js và relayer-sdk ở đây.
-                logMessage(`[FHE] Bắt đầu quá trình Mã hóa và Tạo Proof...`, 'info');
-                
-                // Giả lập FHE
-                const { encryptedBid, proof } = mockFHE.encryptBid(bidWei);
-
-                logMessage(`[FHE] Mã hóa thành công. Gửi giao dịch...`, 'info');
-
-                // Tắt nút để tránh double-click
-                document.getElementById('bidBtn').disabled = true;
-                
-                // Thực hiện giao dịch bid: value PHẢI BẰNG bidWei
-                const tx = await contract.bid(encryptedBid, proof, {
-                    value: bidWei,
-                    gasLimit: 600000 // Tăng gas limit cho các giao dịch FHE
-                });
-
-                logMessage(`Giao dịch BID đang chờ xác nhận: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" class="text-secondary hover:underline">${tx.hash.substring(0, 10)}...</a>`, 'info');
-                
-                const receipt = await tx.wait();
-                
-                logMessage(`BID thành công! Số tiền ký quỹ: ${bidEth} ETH.`, 'success');
-                loadAuctionData();
-                
-            } catch (error) {
-                logMessage(`Lỗi đặt giá: ${error.reason || error.message}`, 'error');
-            } finally {
-                document.getElementById('bidBtn').disabled = false;
-            }
-        }
-
-        // --- 2. YÊU CẦU KẾT THÚC (REQUEST FINALIZE) - OWNER ONLY ---
-        async function requestFinalize() {
-            if (!contract || !auctionOwner || currentAccount.toLowerCase() !== auctionOwner.toLowerCase()) {
-                logMessage('Bạn không phải là Owner.', 'error');
-                return;
-            }
-
-            try {
-                if (!confirm('Bạn có chắc chắn muốn YÊU CẦU KẾT THÚC? Thao tác này sẽ gửi yêu cầu giải mã tới KMS.')) return;
-                
-                const state = await contract.auctionState();
-                if (ethers.toNumber(state) !== 0) { // State 0: Active
-                    logMessage('Đấu giá không ở trạng thái Active (Đang diễn ra).', 'error');
+                if (parseFloat(depositAmount) < parseFloat(bidAmount)) {
+                    showAlert('Deposit must be greater than or equal to bid amount', 'error');
                     return;
                 }
 
-                document.getElementById('requestFinalizeBtn').disabled = true;
+                showAlert('Encrypting your bid...', 'info');
 
-                const tx = await contract.requestFinalize();
-                logMessage(`Gửi REQUEST FINALIZE: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" class="text-secondary hover:underline">${tx.hash.substring(0, 10)}...</a>`, 'info');
+                // Convert to Wei
+                const bidWei = ethers.utils.parseEther(bidAmount);
+                const depositWei = ethers.utils.parseEther(depositAmount);
+
+                // Create encrypted input
+                const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, userAddress);
+                input.add64(bidWei.toBigInt());
+                const encryptedData = await input.encrypt();
+
+                // Generate EIP-712 signature
+                const domain = {
+                    name: 'FHEAuction',
+                    version: '3',
+                    chainId: 11155111,
+                    verifyingContract: CONTRACT_ADDRESS
+                };
+
+                const types = {
+                    PublicKey: [{ name: 'key', type: 'bytes32' }]
+                };
+
+                const value = {
+                    key: encryptedData.handles[0]
+                };
+
+                showAlert('Please sign the transaction...', 'info');
+                const signature = await signer._signTypedData(domain, types, value);
+
+                // Submit bid
+                showAlert('Submitting encrypted bid...', 'info');
+                const tx = await contract.bid(
+                    encryptedData.handles[0],
+                    encryptedData.inputProof,
+                    encryptedData.handles[0],
+                    signature,
+                    { 
+                        value: depositWei,
+                        gasLimit: 500000
+                    }
+                );
+
+                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
                 await tx.wait();
 
-                logMessage('Yêu cầu kết thúc đã được gửi! Đang chờ KMS giải mã...', 'success');
-                loadAuctionData();
+                showAlert('Bid placed successfully! 🎉', 'success');
+                
+                // Refresh data
+                await refreshAuctionInfo();
+                await loadBidders();
+                await loadUserInfo();
+
+                // Clear inputs
+                document.getElementById('bidAmount').value = '';
+                document.getElementById('depositAmount').value = '';
 
             } catch (error) {
-                logMessage(`Lỗi Yêu cầu Kết thúc: ${error.reason || error.message}`, 'error');
-            } finally {
-                document.getElementById('requestFinalizeBtn').disabled = false;
+                console.error('Error placing bid:', error);
+                showAlert('Failed to place bid: ' + error.message, 'error');
             }
         }
-        
-        // --- 3. CLAIM REFUND ---
+
+        // Cancel Bid
+        async function cancelBid() {
+            if (!contract) {
+                showAlert('Please connect wallet first', 'error');
+                return;
+            }
+
+            try {
+                if (!confirm('Are you sure you want to cancel your bid? You will receive a full refund.')) {
+                    return;
+                }
+
+                showAlert('Cancelling bid...', 'info');
+                const tx = await contract.cancelBid();
+                
+                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
+                await tx.wait();
+
+                showAlert('Bid cancelled successfully!', 'success');
+                
+                // Refresh data
+                await refreshAuctionInfo();
+                await loadBidders();
+                await loadUserInfo();
+
+            } catch (error) {
+                console.error('Error cancelling bid:', error);
+                showAlert('Failed to cancel bid: ' + error.message, 'error');
+            }
+        }
+
+        // Claim Refund
         async function claimRefund() {
-            if (!contract || !signer) {
-                logMessage('Vui lòng kết nối ví trước.', 'error');
+            if (!contract) {
+                showAlert('Please connect wallet first', 'error');
                 return;
             }
 
             try {
-                document.getElementById('claimRefundBtn').disabled = true;
-
-                const hasClaimed = await contract.hasClaimedRefund(currentAccount);
-                const state = await contract.auctionState();
-
-                if (ethers.toNumber(state) < 3) {
-                    logMessage('Đấu giá chưa ở trạng thái Finished (Hoàn thành) để rút tiền.', 'error');
+                const refund = await contract.pendingRefunds(userAddress);
+                
+                if (refund.eq(0)) {
+                    showAlert('No refund available', 'info');
                     return;
                 }
 
-                if (hasClaimed) {
-                    logMessage('Bạn đã rút tiền hoàn lại rồi.', 'info');
-                    return;
-                }
-
+                showAlert('Claiming refund...', 'info');
                 const tx = await contract.claimRefund();
-                logMessage(`Gửi CLAIM REFUND: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" class="text-secondary hover:underline">${tx.hash.substring(0, 10)}...</a>`, 'info');
-                await tx.wait();
-
-                logMessage('Hoàn tiền thành công! Số ETH đã được gửi về ví của bạn.', 'success');
-                loadAuctionData();
                 
-            } catch (error) {
-                logMessage(`Lỗi Hoàn tiền: ${error.reason || error.message}`, 'error');
-            } finally {
-                document.getElementById('claimRefundBtn').disabled = false;
-            }
-        }
-
-        // --- 4. BATCH CLAIM REFUNDS ---
-        async function batchClaimRefunds() {
-            if (!contract || !signer) {
-                logMessage('Vui lòng kết nối ví trước.', 'error');
-                return;
-            }
-
-            const addressesInput = document.getElementById('batch-addresses-input').value;
-            const addresses = addressesInput.split(',').map(addr => addr.trim()).filter(addr => ethers.isAddress(addr));
-            
-            if (addresses.length === 0) {
-                logMessage('Vui lòng nhập các địa chỉ ví hợp lệ.', 'error');
-                return;
-            }
-
-            try {
-                document.getElementById('batchRefundBtn').disabled = true;
-
-                const tx = await contract.batchClaimRefunds(addresses);
-                logMessage(`Gửi BATCH REFUND cho ${addresses.length} ví: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" class="text-secondary hover:underline">${tx.hash.substring(0, 10)}...</a>`, 'info');
+                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
                 await tx.wait();
 
-                logMessage(`Batch Refund thành công cho ${addresses.length} ví.`, 'success');
+                showAlert('Refund claimed successfully! 💰', 'success');
                 
+                // Refresh data
+                await loadUserInfo();
+
             } catch (error) {
-                logMessage(`Lỗi Batch Refund: ${error.reason || error.message}`, 'error');
-            } finally {
-                document.getElementById('batchRefundBtn').disabled = false;
+                console.error('Error claiming refund:', error);
+                showAlert('Failed to claim refund: ' + error.message, 'error');
             }
         }
 
-        // Các hàm OWNER khác (pauseAuction, unpauseAuction, emergencyEnd, updateBeneficiary)
-        // ... (Logic tương tự như claimRefund, chỉ cần thay đổi tên hàm contract)
-        // Tôi sẽ thêm chúng để hoàn thiện chức năng UI:
-
-        async function pauseAuction() {
-            if (!contract || currentAccount.toLowerCase() !== auctionOwner.toLowerCase()) return;
-            try {
-                const tx = await contract.pauseAuction();
-                logMessage(`Gửi PAUSE AUCTION: ${tx.hash.substring(0, 10)}...`, 'info');
-                await tx.wait();
-                logMessage('Đấu giá đã tạm dừng!', 'success');
-                document.getElementById('pauseBtn').style.display = 'none';
-                document.getElementById('unpauseBtn').style.display = 'block';
-                loadAuctionData();
-            } catch (error) { logMessage(`Lỗi Pause: ${error.reason || error.message}`, 'error'); }
-        }
-
-        async function unpauseAuction() {
-            if (!contract || currentAccount.toLowerCase() !== auctionOwner.toLowerCase()) return;
-            try {
-                const tx = await contract.unpauseAuction();
-                logMessage(`Gửi UNPAUSE AUCTION: ${tx.hash.substring(0, 10)}...`, 'info');
-                await tx.wait();
-                logMessage('Đấu giá đã khởi động lại!', 'success');
-                document.getElementById('pauseBtn').style.display = 'block';
-                document.getElementById('unpauseBtn').style.display = 'none';
-                loadAuctionData();
-            } catch (error) { logMessage(`Lỗi Unpause: ${error.reason || error.message}`, 'error'); }
-        }
-        
-        async function emergencyEnd() {
-            if (!contract || currentAccount.toLowerCase() !== auctionOwner.toLowerCase()) return;
-            try {
-                if (!confirm('XÁC NHẬN: Bạn có chắc chắn muốn KẾT THÚC KHẨN CẤP?')) return;
-                const tx = await contract.emergencyEnd();
-                logMessage(`Gửi EMERGENCY END: ${tx.hash.substring(0, 10)}...`, 'info');
-                await tx.wait();
-                logMessage('Đấu giá đã kết thúc khẩn cấp!', 'success');
-                loadAuctionData();
-            } catch (error) { logMessage(`Lỗi Emergency End: ${error.reason || error.message}`, 'error'); }
-        }
-
-        async function updateBeneficiary() {
-            if (!contract || currentAccount.toLowerCase() !== auctionOwner.toLowerCase()) return;
-            const newBeneficiary = document.getElementById('newBeneficiaryInput').value;
-            if (!ethers.isAddress(newBeneficiary)) {
-                logMessage('Địa chỉ người thụ hưởng không hợp lệ.', 'error');
-                return;
+        // Start Timer
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
             }
-            try {
-                const tx = await contract.updateBeneficiary(newBeneficiary);
-                logMessage(`Gửi UPDATE BENEFICIARY: ${tx.hash.substring(0, 10)}...`, 'info');
-                await tx.wait();
-                logMessage(`Đã cập nhật Người thụ hưởng thành: ${newBeneficiary}`, 'success');
-            } catch (error) { logMessage(`Lỗi Update Beneficiary: ${error.reason || error.message}`, 'error'); }
+
+            timerInterval = setInterval(async () => {
+                if (!contract) return;
+
+                try {
+                    const endTime = await contract.getEstimatedEndTime();
+                    const now = Math.floor(Date.now() / 1000);
+                    const remaining = endTime - now;
+
+                    if (remaining <= 0) {
+                        document.getElementById('timerValue').textContent = '00:00:00';
+                        document.getElementById('timerSubtext').textContent = 'Auction Ended';
+                        clearInterval(timerInterval);
+                        return;
+                    }
+
+                    const hours = Math.floor(remaining / 3600);
+                    const minutes = Math.floor((remaining % 3600) / 60);
+                    const seconds = remaining % 60;
+
+                    document.getElementById('timerValue').textContent = 
+                        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+                } catch (error) {
+                    console.error('Error updating timer:', error);
+                }
+            }, 1000);
         }
 
-        // =========================================================================
-        // ============================ BỘ LẮNG NGHE SỰ KIỆN ===========================
-        // =========================================================================
-        
+        // Setup Event Listeners
         function setupEventListeners() {
-            if (contract.listenerCount("NewBid") > 0) return; // Tránh lắng nghe nhiều lần
+            if (!contract) return;
 
-            // Lắng nghe các sự kiện của contract
-            contract.on("NewBid", (bidder, encryptedBid, event) => {
-                logMessage(`[EVENT] Giá thầu mới từ ${bidder.substring(0, 8)}... (${encryptedBid.length} bytes mã hóa)`, 'confirmed');
-                loadAuctionData(); // Cập nhật trạng thái ngay lập tức
+            contract.on('BidPlaced', (bidder, round, deposit, block, timestamp) => {
+                console.log('BidPlaced event:', { bidder, round: round.toString(), deposit: deposit.toString() });
+                showAlert(`New bid placed: ${ethers.utils.formatEther(deposit)} ETH`, 'success');
+                loadBidders();
+                refreshAuctionInfo();
             });
-            
-            contract.on("RefundClaimed", (recipient, amount, event) => {
-                logMessage(`[EVENT] Hoàn tiền thành công cho ${recipient.substring(0, 8)}...: ${ethers.formatEther(amount)} ETH`, 'confirmed');
-                if (recipient.toLowerCase() === currentAccount.toLowerCase()) {
-                    // Cập nhật UI của người dùng nếu họ rút tiền
-                    loadAuctionData();
+
+            contract.on('AuctionFinished', (round, winner, finalBid, fee, timestamp) => {
+                console.log('AuctionFinished event:', { winner, finalBid: finalBid.toString() });
+                showAlert(`Auction finished! Winner: ${winner.slice(0, 8)}...`, 'success');
+                refreshAuctionInfo();
+            });
+
+            contract.on('BidCancelled', (bidder, round, refund, timestamp) => {
+                console.log('BidCancelled event:', { bidder, refund: refund.toString() });
+                if (bidder.toLowerCase() === userAddress.toLowerCase()) {
+                    showAlert('Your bid was cancelled', 'info');
+                    loadUserInfo();
+                }
+                loadBidders();
+            });
+
+            contract.on('RefundClaimed', (recipient, amount) => {
+                console.log('RefundClaimed event:', { recipient, amount: amount.toString() });
+                if (recipient.toLowerCase() === userAddress.toLowerCase()) {
+                    showAlert(`Refund claimed: ${ethers.utils.formatEther(amount)} ETH`, 'success');
+                    loadUserInfo();
                 }
             });
-
-            contract.on("AuctionFinalized", (winner, bid, event) => {
-                logMessage(`[EVENT] ĐẤU GIÁ KẾT THÚC! Người thắng: ${winner.substring(0, 8)}... với giá: ${ethers.formatEther(bid)} ETH`, 'success');
-                loadAuctionData();
-            });
-
-            // Lắng nghe sự kiện thay đổi mạng/tài khoản của MetaMask
-            window.ethereum.on('accountsChanged', () => window.location.reload());
-            window.ethereum.on('chainChanged', () => window.location.reload());
         }
 
-        // =========================================================================
-        // ============================== KHỞI TẠO CHUNG ===============================
-        // =========================================================================
-        window.addEventListener('DOMContentLoaded', () => {
-            // Thiết lập link Etherscan
-            document.getElementById('contract-link').href = `https://sepolia.etherscan.io/address/${CONTRACT_ADDRESS}`;
-            document.getElementById('contract-link').textContent = CONTRACT_ADDRESS;
+        // Update Owner Panel
+        async function updateOwnerPanel() {
+            if (!isOwner || !contract) return;
 
-            // Gán hàm vào nút
-            document.getElementById('connectBtn').addEventListener('click', connectWallet);
-            document.getElementById('bidBtn').addEventListener('click', placeBid);
-            document.getElementById('claimRefundBtn').addEventListener('click', claimRefund);
-            document.getElementById('batchRefundBtn').addEventListener('click', batchClaimRefunds);
-            
-            // Gán hàm Owner
-            document.getElementById('requestFinalizeBtn').addEventListener('click', requestFinalize);
-            document.getElementById('emergencyEndBtn').addEventListener('click', emergencyEnd);
-            document.getElementById('pauseBtn').addEventListener('click', pauseAuction);
-            document.getElementById('unpauseBtn').addEventListener('click', unpauseAuction);
-            document.getElementById('updateBeneficiaryBtn').addEventListener('click', updateBeneficiary);
+            try {
+                const owner = await contract.owner();
+                const beneficiary = await contract.beneficiary();
+                const feeCollector = await contract.feeCollector();
+                const paused = await contract.paused();
+                const state = await contract.auctionState();
+                const fees = await contract.totalCollectedFees();
 
-            logMessage('[INIT] Giao diện FHE Auction v1.0 đã tải', 'confirmed');
+                document.getElementById('contractOwner').textContent = owner.slice(0, 10) + '...' + owner.slice(-8);
+                document.getElementById('contractBeneficiary').textContent = beneficiary.slice(0, 10) + '...' + beneficiary.slice(-8);
+                document.getElementById('contractFeeCollector').textContent = feeCollector.slice(0, 10) + '...' + feeCollector.slice(-8);
+                document.getElementById('contractPaused').textContent = paused ? 'Yes' : 'No';
+                document.getElementById('contractState').textContent = AuctionState[state];
+                document.getElementById('totalFees').textContent = ethers.utils.formatEther(fees) + ' ETH';
+
+            } catch (error) {
+                console.error('Error updating owner panel:', error);
+            }
+        }
+
+        // Request Finalize (Owner)
+        async function requestFinalize() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can finalize auction', 'error');
+                return;
+            }
+
+            try {
+                if (!confirm('Finalize the auction? This will decrypt all bids and determine the winner.')) {
+                    return;
+                }
+
+                showAlert('Requesting finalization...', 'info');
+                const tx = await contract.requestFinalize({ gasLimit: 1000000 });
+                
+                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
+                await tx.wait();
+
+                showAlert('Auction finalization requested. Waiting for KMS decryption...', 'success');
+                
+                await refreshAuctionInfo();
+
+            } catch (error) {
+                console.error('Error finalizing auction:', error);
+                showAlert('Failed to finalize: ' + error.message, 'error');
+            }
+        }
+
+        // Update Beneficiary (Owner)
+        async function updateBeneficiary() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can update beneficiary', 'error');
+                return;
+            }
+
+            try {
+                const newBeneficiary = document.getElementById('newBeneficiary').value;
+                
+                if (!ethers.utils.isAddress(newBeneficiary)) {
+                    showAlert('Invalid address', 'error');
+                    return;
+                }
+
+                showAlert('Updating beneficiary...', 'info');
+                const tx = await contract.updateBeneficiary(newBeneficiary);
+                
+                await tx.wait();
+                showAlert('Beneficiary updated successfully!', 'success');
+                
+                await updateOwnerPanel();
+                document.getElementById('newBeneficiary').value = '';
+
+            } catch (error) {
+                console.error('Error updating beneficiary:', error);
+                showAlert('Failed to update beneficiary: ' + error.message, 'error');
+            }
+        }
+
+        // Update Fee Collector (Owner)
+        async function updateFeeCollector() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can update fee collector', 'error');
+                return;
+            }
+
+            try {
+                const newFeeCollector = document.getElementById('newFeeCollector').value;
+                
+                if (!ethers.utils.isAddress(newFeeCollector)) {
+                    showAlert('Invalid address', 'error');
+                    return;
+                }
+
+                showAlert('Updating fee collector...', 'info');
+                const tx = await contract.updateFeeCollector(newFeeCollector);
+                
+                await tx.wait();
+                showAlert('Fee collector updated successfully!', 'success');
+                
+                await updateOwnerPanel();
+                document.getElementById('newFeeCollector').value = '';
+
+            } catch (error) {
+                console.error('Error updating fee collector:', error);
+                showAlert('Failed to update fee collector: ' + error.message, 'error');
+            }
+        }
+
+        // Pause Auction (Owner)
+        async function pauseAuction() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can pause auction', 'error');
+                return;
+            }
+
+            try {
+                if (!confirm('Pause the auction?')) {
+                    return;
+                }
+
+                showAlert('Pausing auction...', 'info');
+                const tx = await contract.pauseAuction();
+                
+                await tx.wait();
+                showAlert('Auction paused', 'success');
+                
+                await updateOwnerPanel();
+
+            } catch (error) {
+                console.error('Error pausing auction:', error);
+                showAlert('Failed to pause: ' + error.message, 'error');
+            }
+        }
+
+        // Unpause Auction (Owner)
+        async function unpauseAuction() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can unpause auction', 'error');
+                return;
+            }
+
+            try {
+                showAlert('Unpausing auction...', 'info');
+                const tx = await contract.unpauseAuction();
+                
+                await tx.wait();
+                showAlert('Auction unpaused', 'success');
+                
+                await updateOwnerPanel();
+
+            } catch (error) {
+                console.error('Error unpausing auction:', error);
+                showAlert('Failed to unpause: ' + error.message, 'error');
+            }
+        }
+
+        // Withdraw Fees (Owner)
+        async function withdrawFees() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can withdraw fees', 'error');
+                return;
+            }
+
+            try {
+                const fees = await contract.totalCollectedFees();
+                
+                if (fees.eq(0)) {
+                    showAlert('No fees to withdraw', 'info');
+                    return;
+                }
+
+                showAlert('Withdrawing platform fees...', 'info');
+                const tx = await contract.withdrawPlatformFees();
+                
+                await tx.wait();
+                showAlert(`Fees withdrawn: ${ethers.utils.formatEther(fees)} ETH`, 'success');
+                
+                await updateOwnerPanel();
+
+            } catch (error) {
+                console.error('Error withdrawing fees:', error);
+                showAlert('Failed to withdraw fees: ' + error.message, 'error');
+            }
+        }
+
+        // Emergency End (Owner)
+        async function emergencyEnd() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can trigger emergency end', 'error');
+                return;
+            }
+
+            try {
+                const reason = prompt('Enter reason for emergency end:');
+                if (!reason) return;
+
+                if (!confirm('⚠️ EMERGENCY END: This will refund all bidders and cannot be undone. Continue?')) {
+                    return;
+                }
+
+                showAlert('Triggering emergency end...', 'info');
+                const tx = await contract.emergencyEnd(reason, { gasLimit: 1000000 });
+                
+                await tx.wait();
+                showAlert('Emergency end executed', 'success');
+                
+                await refreshAuctionInfo();
+
+            } catch (error) {
+                console.error('Error in emergency end:', error);
+                showAlert('Failed to execute emergency end: ' + error.message, 'error');
+            }
+        }
+
+        // Force Finalize (Owner)
+        async function forceFinalize() {
+            if (!contract || !isOwner) {
+                showAlert('Only owner can force finalize', 'error');
+                return;
+            }
+
+            try {
+                if (!confirm('⚠️ FORCE FINALIZE: This should only be used if decryption is stuck. Continue?')) {
+                    return;
+                }
+
+                showAlert('Force finalizing...', 'info');
+                const tx = await contract.forceFinalize({ gasLimit: 500000 });
+                
+                await tx.wait();
+                showAlert('Auction force finalized', 'success');
+                
+                await refreshAuctionInfo();
+
+            } catch (error) {
+                console.error('Error force finalizing:', error);
+                showAlert('Failed to force finalize: ' + error.message, 'error');
+            }
+        }
+
+        // Open History Modal
+        async function openHistoryModal() {
+            if (!contract) return;
+
+            document.getElementById('historyModal').classList.add('active');
+            document.getElementById('historyContent').innerHTML = '<div class="loading"><div class="spinner"></div>Loading history...</div>';
+
+            try {
+                const currentRound = await contract.currentRound();
+                const history = await contract.getRoundHistory(currentRound - 1, 20);
+
+                if (history.length === 0) {
+                    document.getElementById('historyContent').innerHTML = '<div class="loading">No bid history available</div>';
+                    return;
+                }
+
+                let html = '';
+                for (const item of history) {
+                    const date = new Date(item.timestamp.toNumber() * 1000);
+                    html += `
+                        <div class="history-item">
+                            <div><strong>Bidder:</strong> ${item.bidder.slice(0, 10)}...${item.bidder.slice(-8)}</div>
+                            <div><strong>Deposit:</strong> ${ethers.utils.formatEther(item.deposit)} ETH</div>
+                            <div class="history-time">${date.toLocaleString()}</div>
+                            ${item.withdrawn ? '<div style="color: #f5576c;">Withdrawn</div>' : ''}
+                        </div>
+                    `;
+                }
+
+                document.getElementById('historyContent').innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading history:', error);
+                document.getElementById('historyContent').innerHTML = '<div class="alert alert-error">Failed to load history</div>';
+            }
+        }
+
+        // Close History Modal
+        function closeHistoryModal() {
+            document.getElementById('historyModal').classList.remove('active');
+        }
+
+        // Switch Tabs
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tab + 'Content').classList.add('active');
+        }
+
+        // Show Alert
+        function showAlert(message, type = 'info') {
+            const alertArea = document.getElementById('alertArea');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
             
-            // Tải dữ liệu lần đầu (nếu người dùng đã kết nối ví trước đó)
-            if (window.ethereum && window.ethereum.selectedAddress) {
-                connectWallet();
+            alertArea.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.style.opacity = '0';
+                setTimeout(() => alertDiv.remove(), 300);
+            }, 5000);
+        }
+
+        // Close modal on outside click
+        document.getElementById('historyModal').addEventListener('click', (e) => {
+            if (e.target.id === 'historyModal') {
+                closeHistoryModal();
             }
         });
+
+        // Handle network changes
+        if (window.ethereum) {
+            window.ethereum.on('chainChanged', () => {
+                window.location.reload();
+            });
+
+            window.ethereum.on('accountsChanged', (accounts) => {
+                if (accounts.length === 0) {
+                    disconnectWallet();
+                } else {
+                    window.location.reload();
+                }
+            });
+        }
     </script>
 </body>
 </html>
