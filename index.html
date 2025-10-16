@@ -1,1586 +1,813 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FHE Auction - Privacy-Preserving Blockchain Auction</title>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fhevmjs@0.5.2/bundle.min.js"></script>
+    <title>Zama FHE Terminal - Fully Homomorphic Encryption (FHE) Secure Auction</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .logo-left img {
-            height: 40px;
-        }
-
-        .social-links {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .social-links a {
-            opacity: 0.7;
-            transition: opacity 0.3s;
-        }
-
-        .social-links a:hover {
-            opacity: 1;
-        }
-
-        .social-links img {
-            height: 24px;
-            width: 24px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-
-        .wallet-section {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .wallet-info {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .wallet-address {
-            font-family: 'Monaco', monospace;
-            font-size: 0.9rem;
-            color: #666;
-        }
-
-        .role-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .role-owner {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
-        .role-user {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.95rem;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-            color: white;
-        }
-
-        .grid-3col {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .status-badge {
-            padding: 0.4rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .status-active {
-            background: #43e97b;
-            color: white;
-        }
-
-        .status-ended {
-            background: #f5576c;
-            color: white;
-        }
-
-        .status-finalizing {
-            background: #ffa502;
-            color: white;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #f5f5f5;
-        }
-
-        .info-label {
-            color: #666;
-            font-weight: 500;
-        }
-
-        .info-value {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .highlight-value {
-            color: #667eea;
-            font-size: 1.1rem;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            transition: border-color 0.3s;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .form-hint {
-            font-size: 0.85rem;
-            color: #666;
-            margin-top: 0.25rem;
-        }
-
-        .timer {
-            text-align: center;
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-        }
-
-        .timer-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin: 0.5rem 0;
-        }
-
-        .timer-label {
-            font-size: 1rem;
-            opacity: 0.9;
-        }
-
-        .bidders-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .bidder-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-
-        .bidder-address {
-            font-family: 'Monaco', monospace;
-            font-size: 0.85rem;
-        }
-
-        .bidder-deposit {
-            font-weight: 600;
-            color: #667eea;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: #666;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .alert {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .footer {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 2rem;
-            text-align: center;
-            margin-top: 3rem;
-        }
-
-        .footer-content {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .footer-link {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .footer-link:hover {
-            text-decoration: underline;
-        }
-
-        .owner-panel {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .owner-panel .card-title {
-            color: white;
-        }
-
-        .owner-panel .form-label {
-            color: white;
-        }
-
-        .owner-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #666;
-        }
-
-        .history-item {
-            padding: 1rem;
-            border-left: 4px solid #667eea;
-            background: #f8f9fa;
-            margin-bottom: 0.75rem;
-            border-radius: 4px;
-        }
-
-        .history-time {
-            font-size: 0.85rem;
-            color: #666;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .tab {
-            padding: 0.75rem 1.5rem;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-weight: 600;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @media (max-width: 768px) {
-            .grid-3col {
-                grid-template-columns: 1fr;
-            }
-
-            .wallet-section {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .timer-value {
-                font-size: 2rem;
-            }
-        }
+        /* CSS Styles - Giữ nguyên phong cách terminal */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'VT323', monospace; background-color: #000000; color: #00ff00; min-height: 100vh; padding: 20px; font-size: 18px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 40px; animation: fadeIn 1s ease-out; }
+        h1 { font-size: 3em; margin-bottom: 5px; text-shadow: 0 0 5px #00ff00, 0 0 15px rgba(0, 255, 0, 0.8); }
+        .subtitle { font-size: 1.2em; opacity: 0.9; }
+
+        .product-layout { background-color: #050505; border: 2px solid #ffff00; padding: 25px; margin-bottom: 30px; box-shadow: 0 0 15px rgba(255, 255, 0, 0.4); }
+        .product-layout h2 { font-size: 2em; color: #ffff00; border-bottom: 2px solid #00ff00; padding-bottom: 10px; margin-bottom: 15px; }
+        .product-details { display: flex; gap: 20px; align-items: flex-start; }
+        .product-image-container { flex-shrink: 0; width: 200px; height: 150px; background: #111; border: 1px solid #00ff00; overflow: hidden; position: relative; }
+        .product-image { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .product-info { flex-grow: 1; line-height: 1.4; }
+        .product-info strong { color: #00ff00; }
+
+        .main-grid { display: grid; grid-template-columns: 1fr; gap: 30px; margin-bottom: 30px; }
+        .card { background-color: #000000; border: 2px solid #00ff00; padding: 25px; box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); animation: fadeInUp 1s ease-out; }
+        .card h2 { margin-bottom: 20px; font-size: 1.8em; color: #ffff00; border-bottom: 1px dashed #00ff00; padding-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #00ff00; background: #000; color: #00ff00; font-size: 1em; font-family: 'VT323', monospace; margin-bottom: 15px; caret-color: #ffff00; box-shadow: 0 0 5px rgba(0, 255, 0, 0.2); transition: border-color 0.2s; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #ffff00; box-shadow: 0 0 8px #ffff00; }
+        button { background: #000; border: 2px solid #00ff00; padding: 12px 20px; color: #00ff00; font-size: 1.1em; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; transition: all 0.2s ease; font-family: 'VT323', monospace; letter-spacing: 1px; text-transform: uppercase; }
+        button:hover { background: #00ff00; color: #000000; box-shadow: 0 0 15px #00ff00; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; background: #000; color: #00ff00; box-shadow: none; }
+        .auction-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .info-item { background: #0a0a0a; padding: 15px; border: 1px solid #00ff00; text-align: center; }
+        .info-label { font-size: 0.9em; opacity: 0.8; margin-bottom: 5px; }
+        .info-value { font-size: 1.5em; font-weight: bold; color: #ffff00; }
+        .wallet-status { padding: 15px; background: #0a0a0a; border: 1px dashed #00ff00; margin-bottom: 20px; text-align: left; }
+        .fhe-badge { display: inline-block; background: #00ff00; color: #000; padding: 3px 8px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; margin-left: 10px; border: 1px solid #00ff00; box-shadow: 0 0 5px #00ff00; }
+        .encrypted-badge { display: flex; align-items: center; gap: 10px; background: #111; padding: 10px; border: 1px solid #00ff00; margin-top: 10px; font-size: 0.9em; }
+        .tx-monitor { grid-column: 1 / -1; }
+        .tx-container { height: 300px; background: #0a0a0a; border: 1px solid #00ff00; overflow-y: auto; padding: 10px; line-height: 1.4; white-space: pre-wrap; position: relative; }
+        .log-pending { color: orange; }
+        .log-confirmed { color: #00ff00; }
+        .log-failed { color: #ff0000; }
+        .cancel-btn { background: darkred; border-color: red; color: #fff; }
+        .cancel-btn:hover { background: red; box-shadow: 0 0 15px red; }
+        .pause-btn { background: darkblue; border-color: blue; color: #fff; }
+        .pause-btn:hover { background: blue; box-shadow: 0 0 15px blue; }
+        .refund-section { margin-top: 20px; }
+        .bidders-list { max-height: 200px; overflow-y: auto; background: #0a0a0a; border: 1px solid #00ff00; padding: 10px; }
+        .bidders-list p { margin: 5px 0; opacity: 0.8; }
+        .owner-section { border-top: 2px solid #ffff00; padding-top: 20px; margin-top: 20px; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @media (min-width: 768px) { .main-grid { grid-template-columns: 2fr 3fr; } .tx-monitor { grid-column: 1 / 3; } .product-details { flex-direction: row; } }
+        @media (max-width: 767px) { .product-details { flex-direction: column; } .product-image-container { width: 100%; height: 200px; } }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="logo-left">
-            <img src="https://www.zama.ai/images/logo.svg" alt="Zama" />
-            <span style="font-weight: 700; font-size: 1.2rem;">FHE Auction</span>
-        </div>
-        <div class="social-links">
-            <a href="https://twitter.com/zama_fhe" target="_blank" rel="noopener">
-                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E" alt="X" />
-            </a>
-            <a href="https://github.com/zama-ai" target="_blank" rel="noopener">
-                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z'/%3E%3C/svg%3E" alt="GitHub" />
-            </a>
-        </div>
-    </div>
-
     <div class="container">
-        <!-- Wallet Connection -->
-        <div class="wallet-section" id="walletSection">
-            <div class="wallet-info">
-                <div id="connectionStatus">
-                    <button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>
+        <header>
+            <h1>[SYSTEM ONLINE] ZAMA FHE AUCTION $</h1>
+            <p class="subtitle">Fully Homomorphic Encryption (FHE) Secure Auction - Sepolia Testnet Ready.</p>
+        </header>
+
+        <div class="product-layout">
+            <h2>> AUCTION ITEM: **CRYPTIC KEY**</h2>
+            <div class="product-details">
+                <div class="product-image-container">
+                    <img id="productImage" class="product-image" src="https://raw.githubusercontent.com/Quangx199x/SYSTEM-ONLINE---ZAMA-FHE-AUCTION/refs/heads/main/key.jpeg" alt="Sản phẩm đấu giá">
+                </div>
+                <div class="product-info">
+                    <p><strong>Description:</strong> Encrypted Golden Key NFT (euint64 bid).</p>
+                    <p><strong>Conditions:</strong> Bid must be in **Wei** and less than 18 ETH (due to `euint64` limit). Winning bid transferred to Beneficiary.</p>
                 </div>
             </div>
         </div>
-
-        <!-- Alert Area -->
-        <div id="alertArea"></div>
-
-        <!-- Auction Timer -->
-        <div class="timer" id="auctionTimer">
-            <div class="timer-label">Auction Ends In</div>
-            <div class="timer-value" id="timerValue">--:--:--</div>
-            <div class="timer-label" id="timerSubtext">Round #<span id="roundNumber">1</span></div>
-        </div>
-
-        <!-- Main Content Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('user')">User Dashboard</button>
-            <button class="tab" id="ownerTab" style="display: none;" onclick="switchTab('owner')">Owner Panel</button>
-        </div>
-
-        <!-- User Dashboard -->
-        <div class="tab-content active" id="userContent">
-            <div class="grid-3col">
-                <!-- Auction Info Card -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Auction Info</h3>
-                        <span class="status-badge status-active" id="auctionStatus">Active</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Current Round</span>
-                        <span class="info-value" id="infoRound">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">End Block</span>
-                        <span class="info-value" id="infoEndBlock">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Total Bidders</span>
-                        <span class="info-value highlight-value" id="infoBidders">0</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Min Deposit</span>
-                        <span class="info-value" id="infoMinDeposit">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Platform Fee</span>
-                        <span class="info-value">2.5%</span>
-                    </div>
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="refreshAuctionInfo()">
-                        Refresh Info
-                    </button>
+        
+        <div class="main-grid">
+            
+            <div class="card wallet-section">
+                <h2>> INIT WALLET SERVICE & FHE SDK</h2>
+                <div class="wallet-status" id="walletStatus">
+                    <p class="log-line log-info">[STATUS] Wallet: DISCONNECTED</p>
+                    <p class="log-line log-info">[NETWORK] Target Network: **Sepolia (11155111)**</p>
+                    <p class="log-line log-pending" id="fheStatus">[FHE SDK] Initializing FHE WASM files...</p>
                 </div>
-
-                <!-- Place Bid Card -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Place Bid</h3>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Bid Amount (ETH)</label>
-                        <input type="number" class="form-input" id="bidAmount" placeholder="0.1" step="0.001" />
-                        <div class="form-hint">Your encrypted bid amount (private)</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Deposit Amount (ETH)</label>
-                        <input type="number" class="form-input" id="depositAmount" placeholder="0.1" step="0.001" />
-                        <div class="form-hint">Must be ≥ bid amount to win</div>
-                    </div>
-                    <button class="btn btn-primary" style="width: 100%;" onclick="placeBid()">
-                        🔒 Submit Encrypted Bid
-                    </button>
-                    <div class="info-row" style="margin-top: 1rem;">
-                        <span class="info-label">Your Deposit</span>
-                        <span class="info-value" id="userDeposit">0 ETH</span>
-                    </div>
-                    <button class="btn btn-danger" style="width: 100%; margin-top: 0.5rem;" onclick="cancelBid()">
-                        Cancel My Bid
-                    </button>
-                </div>
-
-                <!-- Your Status Card -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Your Status</h3>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Has Bid This Round</span>
-                        <span class="info-value" id="userHasBid">No</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Bid Cancelled</span>
-                        <span class="info-value" id="userCancelled">No</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Pending Refund</span>
-                        <span class="info-value highlight-value" id="userRefund">0 ETH</span>
-                    </div>
-                    <button class="btn btn-success" style="width: 100%; margin-top: 1rem;" onclick="claimRefund()">
-                        💰 Claim Refund
-                    </button>
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="openHistoryModal()">
-                        📜 View Bid History
-                    </button>
-                </div>
+                <button id="connectBtn">
+                    > CONNECT WALLET & INIT FHE
+                </button>
             </div>
 
-            <!-- Active Bidders -->
             <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Active Bidders</h3>
-                    <span class="info-value" id="bidderCount">0 bidders</span>
+                <h2>> AUCTION DATA FEED (FHE PROTECTED)</h2>
+                <div class="auction-info">
+                    <div class="info-item">
+                        <div class="info-label">Current Round</div>
+                        <div class="info-value" id="currentRound">#1</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Time Remaining</div>
+                        <div class="info-value" id="timeLeft">--:--:--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Min Deposit</div>
+                        <div class="info-value" id="minDepositValue">-- ETH</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Highest Bid</div>
+                        <div class="info-value" id="currentBid">CIPHERTEXT</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Lead Bidder</div>
+                        <div class="info-value" id="leadBidder">0x0000...</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Status</div>
+                        <div class="info-value" id="auctionStatus">ACTIVE</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Total Fees</div>
+                        <div class="info-value" id="totalFees">0 ETH</div>
+                    </div>
                 </div>
-                <div class="bidders-list" id="biddersList">
-                    <div class="loading">No bidders yet</div>
-                </div>
-            </div>
-
-            <!-- Winner Info (if finalized) -->
-            <div class="card" id="winnerCard" style="display: none;">
-                <div class="card-header">
-                    <h3 class="card-title">🏆 Auction Winner</h3>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Winner Address</span>
-                    <span class="info-value" id="winnerAddress">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Winning Bid</span>
-                    <span class="info-value highlight-value" id="winningBid">-</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Owner Panel -->
-        <div class="tab-content" id="ownerContent">
-            <div class="owner-panel card">
-                <h3 class="card-title">⚙️ Owner Controls</h3>
                 
-                <div class="form-group">
-                    <label class="form-label">Update Beneficiary</label>
-                    <input type="text" class="form-input" id="newBeneficiary" placeholder="0x..." />
-                    <button class="btn btn-primary" style="margin-top: 0.5rem;" onclick="updateBeneficiary()">
-                        Update Beneficiary
+                <div id="ownerActions" style="display: none; margin-top: 20px;">
+                    <button id="updateBeneficiaryBtn" disabled>
+                        > UPDATE BENEFICIARY (OWNER ONLY)
                     </button>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Update Fee Collector</label>
-                    <input type="text" class="form-input" id="newFeeCollector" placeholder="0x..." />
-                    <button class="btn btn-primary" style="margin-top: 0.5rem;" onclick="updateFeeCollector()">
-                        Update Fee Collector
+                    <input type="text" id="newBeneficiary" placeholder="New beneficiary address">
+                    <button id="updateFeeCollectorBtn" disabled>
+                        > UPDATE FEE COLLECTOR (OWNER ONLY)
                     </button>
-                </div>
-
-                <div class="owner-actions">
-                    <button class="btn btn-success" onclick="requestFinalize()">
-                        ✅ Finalize Auction
+                    <input type="text" id="newFeeCollector" placeholder="New fee collector address">
+                    <button id="finalizeBtn" disabled>
+                        > REQUEST FINALIZE & REVEAL WINNER (OWNER ONLY)
                     </button>
-                    <button class="btn btn-danger" onclick="pauseAuction()">
-                        ⏸️ Pause Auction
+                    <button id="pauseBtn" class="pause-btn" disabled>
+                        > PAUSE AUCTION (OWNER ONLY)
                     </button>
-                    <button class="btn btn-success" onclick="unpauseAuction()">
-                        ▶️ Unpause Auction
+                    <button id="cancelDecryptionBtn" class="cancel-btn" disabled>
+                        > CANCEL DECRYPTION (OWNER ONLY)
                     </button>
-                    <button class="btn btn-secondary" onclick="withdrawFees()">
-                        💸 Withdraw Fees
+                    <button id="emergencyEndBtn" class="cancel-btn" disabled>
+                        > EMERGENCY END (OWNER ONLY, +24H DELAY)
                     </button>
-                    <button class="btn btn-danger" onclick="emergencyEnd()">
-                        🚨 Emergency End
+                    <button id="withdrawFeesBtn" disabled>
+                        > WITHDRAW PLATFORM FEES (OWNER ONLY)
                     </button>
-                    <button class="btn btn-danger" onclick="forceFinalize()">
-                        🔧 Force Finalize
+                    <button id="batchClaimBtn" disabled>
+                        > BATCH CLAIM REFUNDS (OWNER ONLY)
                     </button>
-                </div>
-
-                <div class="info-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(255,255,255,0.3);">
-                    <span class="form-label">Total Collected Fees</span>
-                    <span class="info-value" id="totalFees" style="color: white;">-</span>
+                    <textarea id="claimantsList" placeholder="Enter addresses (one per line)" rows="3"></textarea>
                 </div>
             </div>
 
-            <!-- Contract Info -->
-            <div class="grid-3col">
-                <div class="card">
-                    <h3 class="card-title">Contract Addresses</h3>
-                    <div class="info-row">
-                        <span class="info-label">Owner</span>
-                        <span class="info-value" style="font-size: 0.8rem;" id="contractOwner">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Beneficiary</span>
-                        <span class="info-value" style="font-size: 0.8rem;" id="contractBeneficiary">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Fee Collector</span>
-                        <span class="info-value" style="font-size: 0.8rem;" id="contractFeeCollector">-</span>
+            <div class="card">
+                <h2>> FHE BID SUBMISSION</h2>
+                <label for="bidAmount" class="log-line">[INPUT] Enter Bid Amount (ETH):</label>
+                <input 
+                    type="number" 
+                    id="bidAmount" 
+                    placeholder="ETH value (e.g., 0.001)" 
+                    step="0.001"
+                    min="0"
+                >
+                <label for="depositAmount" class="log-line">[INPUT] Enter Deposit (ETH):</label>
+                <input 
+                    type="number" 
+                    id="depositAmount" 
+                    placeholder="ETH deposit (must be >= Min Deposit)" 
+                    step="0.001"
+                    min="0"
+                >
+                <div class="encrypted-badge">
+                    <span>Your bid will be encrypted using **euint64** and signed using **EIP712** before submission.</span>
+                </div>
+                <button id="bidBtn" disabled>
+                    > SUBMIT ENCRYPTED BID $ (Sepolia)
+                </button>
+                <div class="refund-section">
+                    <button id="cancelBidBtn" class="cancel-btn" disabled>
+                        > CANCEL BID (REFUND DEPOSIT)
+                    </button>
+                    <button id="claimRefundBtn" disabled>
+                        > CLAIM REFUND (IF AVAILABLE)
+                    </button>
+                    <div id="pendingRefund" style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                        Pending Refund: 0 ETH
                     </div>
                 </div>
+            </div>
 
-                <div class="card">
-                    <h3 class="card-title">Contract State</h3>
-                    <div class="info-row">
-                        <span class="info-label">Paused</span>
-                        <span class="info-value" id="contractPaused">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Auction State</span>
-                        <span class="info-value" id="contractState">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Decryption Pending</span>
-                        <span class="info-value" id="decryptionPending">-</span>
-                    </div>
+            <div class="card">
+                <h2>> BIDDER INFO & ROUND BIDDERS</h2>
+                <div id="bidderInfo">
+                    <p>[INFO] Connect wallet to view bidder details.</p>
                 </div>
-
-                <div class="card">
-                    <h3 class="card-title">Constants</h3>
-                    <div class="info-row">
-                        <span class="info-label">Min Bid Increment</span>
-                        <span class="info-value">1 Gwei</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Base Duration</span>
-                        <span class="info-value">7200 blocks</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Extension Duration</span>
-                        <span class="info-value">75 blocks</span>
-                    </div>
+                <div class="bidders-list" id="roundBidders">
+                    <p>[LIST] Round bidders will appear here.</p>
+                </div>
+            </div>
+            
+            <div class="card tx-monitor">
+                <h2>> LIVE TRANSACTION LOG <span class="fhe-badge">FHEVM</span></h2>
+                <div class="tx-container" id="txContainer">
+                    <p class="log-line"><span class="log-time">[00:00:00]</span> [CORE] System initialization complete. Awaiting FHE SDK...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- History Modal -->
-    <div class="modal" id="historyModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="card-title">Bid History</h3>
-                <button class="modal-close" onclick="closeHistoryModal()">×</button>
-            </div>
-            <div id="historyContent">
-                <div class="loading">Loading history...</div>
-            </div>
-        </div>
-    </div>
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script defer>
+        
+        // --- CONFIGURATION ---
+        const CONTRACT_ADDRESS = '0x1cb2bbe021f9f3284fc325773e6eb80090fb520b'; 
+        
+        const SEPOLIA_CHAIN_ID = 11155111; 
+        const EIP712_DOMAIN_NAME = "FHEAuction";
+        const EIP712_DOMAIN_VERSION = "1";
+        const EMERGENCY_DELAY_MS = 24 * 3600 * 1000; // 24 hours in ms
 
-    <!-- Footer -->
-    <div class="footer">
-        <div class="footer-content">
-            <p>Powered by <a href="https://www.zama.ai" target="_blank" rel="noopener" class="footer-link">Zama</a> - Fully Homomorphic Encryption</p>
-            <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
-                Privacy-preserving blockchain auction using FHE technology
-            </p>
-        </div>
-    </div>
+        // Updated FHE Auction ABI based on contract verification
+        const FHE_AUCTION_ABI = [
+            {"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"},{"internalType":"address","name":"_gatewayContract","type":"address"},{"internalType":"address","name":"_feeCollector","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+            {"inputs":[],"name":"AuctionAlreadyFinalized","type":"error"},
+            {"inputs":[],"name":"AuctionNotActive","type":"error"},
+            {"inputs":[],"name":"AuctionStillActive","type":"error"},
+            {"inputs":[],"name":"BidAlreadyCancelled","type":"error"},
+            {"inputs":[],"name":"CannotCancelAfterEnd","type":"error"},
+            {"inputs":[],"name":"ContractPaused","type":"error"},
+            {"inputs":[],"name":"DecryptionAlreadyPending","type":"error"},
+            {"inputs":[],"name":"DecryptionNotTimedOut","type":"error"},
+            {"inputs":[],"name":"ECDSAInvalidSignature","type":"error"},
+            {"inputs":[{"internalType":"uint256","name":"length","type":"uint256"}],"name":"ECDSAInvalidSignatureLength","type":"error"},
+            {"inputs":[{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"ECDSAInvalidSignatureS","type":"error"},
+            {"inputs":[],"name":"EmergencyDelayNotMet","type":"error"},
+            {"inputs":[],"name":"HandlesAlreadySavedForRequestID","type":"error"},
+            {"inputs":[],"name":"InsufficientDeposit","type":"error"},
+            {"inputs":[],"name":"InvalidAddress","type":"error"},
+            {"inputs":[],"name":"InvalidAmount","type":"error"},
+            {"inputs":[],"name":"InvalidDecryptionData","type":"error"},
+            {"inputs":[],"name":"InvalidKMSSignatures","type":"error"},
+            {"inputs":[],"name":"InvalidShortString","type":"error"},
+            {"inputs":[],"name":"InvalidSignature","type":"error"},
+            {"inputs":[],"name":"InvalidState","type":"error"},
+            {"inputs":[],"name":"MaxBiddersReached","type":"error"},
+            {"inputs":[],"name":"NoBidders","type":"error"},
+            {"inputs":[],"name":"NoHandleFoundForRequestID","type":"error"},
+            {"inputs":[],"name":"NoRefundAvailable","type":"error"},
+            {"inputs":[],"name":"NoValidBids","type":"error"},
+            {"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},
+            {"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},
+            {"inputs":[],"name":"TransferFailed","type":"error"},
+            {"inputs":[],"name":"Unauthorized","type":"error"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newEndBlock","type":"uint256"}],"name":"AuctionExtended","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":true,"internalType":"address","name":"winner","type":"address"},{"internalType":"uint256","name":"finalBid","type":"uint256"},{"internalType":"uint256","name":"platformFee","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"AuctionFinished","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"oldBeneficiary","type":"address"},{"indexed":true,"internalType":"address","name":"newBeneficiary","type":"address"}],"name":"BeneficiaryUpdated","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"refundAmount","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"BidCancelled","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"string","name":"reason","type":"string"},{"internalType":"uint256","name":"refundAmount","type":"uint256"}],"name":"BidInvalidated","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"depositAmount","type":"uint256"},{"internalType":"uint256","name":"blockNumber","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"BidPlaced","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes32[]","name":"handles","type":"bytes32[]"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"DecryptionRequested","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"DecryptionTimeout","type":"event"},
+            {"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"string","name":"reason","type":"string"}],"name":"EmergencyActivated","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"oldCollector","type":"address"},{"indexed":true,"internalType":"address","name":"newCollector","type":"address"}],"name":"FeeCollectorUpdated","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"collector","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PlatformFeeCollected","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundAvailable","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundClaimed","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"endBlock","type":"uint256"},{"internalType":"uint256","name":"estimatedEndTime","type":"uint256"}],"name":"RoundStarted","type":"event"},
+            {"anonymous":false,"inputs":[{"internalType":"enum FHEAuction.AuctionState","name":"from","type":"uint8"},{"internalType":"enum FHEAuction.AuctionState","name":"to","type":"uint8"}],"name":"StateChanged","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"totalBids","type":"uint256"},{"internalType":"uint256","name":"validBids","type":"uint256"},{"internalType":"uint256","name":"invalidBids","type":"uint256"},{"internalType":"uint256","name":"maxBid","type":"uint256"},{"internalType":"uint256","name":"threshold","type":"uint256"}],"name":"ValidationSummary","type":"event"},
+            {"stateMutability":"payable","type":"fallback"},
+            {"inputs":[{"internalType":"address[]","name":"claimants","type":"address[]"}],"name":"batchClaimRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"inputProof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},
+            {"inputs":[],"name":"cancelBid","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"cancelDecryption","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"claimRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"BASE_AUCTION_DURATION_BLOCKS","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"BATCH_REFUND_SIZE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"BLOCK_TIME","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"DECRYPTION_TIMEOUT_BLOCKS","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"EMERGENCY_DELAY_BLOCKS","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"EXTENSION_DURATION_BLOCKS","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"KMS_THRESHOLD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"MAX_BIDDERS_PER_ROUND","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"MIN_BID_INCREMENT","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"PLATFORM_FEE_BPS","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"auctionEndBlock","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"auctionState","outputs":[{"internalType":"enum FHEAuction.AuctionState","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"beneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"deposits","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"feeCollector","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"gatewayContract","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getAuctionInfo","outputs":[{"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"endBlock","type":"uint256"},{"internalType":"enum FHEAuction.AuctionState","name":"state","type":"uint8"},{"internalType":"uint256","name":"maxDeposit","type":"uint256"},{"internalType":"address","name":"leadBidder","type":"address"},{"internalType":"uint256","name":"validBidders","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"getBidderInfo","outputs":[{"internalType":"uint256","name":"deposit","type":"uint256"},{"internalType":"bool","name":"hasBidded","type":"bool"},{"internalType":"bool","name":"cancelled","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getEstimatedEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"getRoundBidders","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"pendingRefunds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"totalCollectedFees","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"emergencyWithdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"forceFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"newBeneficiary","type":"address"}],"name":"updateBeneficiary","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"newFeeCollector","type":"address"}],"name":"updateFeeCollector","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"withdrawPlatformFees","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"stateMutability":"payable","type":"receive"}
+        ];
 
-    <script>
-        // Contract Configuration
-        const CONTRACT_ADDRESS = '0x3023a7dc6f4732c4004c3070a12dd6e796cd3c93'; // Replace with your deployed contract address
-        const CONTRACT_ABI = [{"inputs":[{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"address","name":"_pauserSet","type":"address"},{"internalType":"address","name":"_beneficiary","type":"address"},{"internalType":"address","name":"_gatewayContract","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AuctionAlreadyFinalized","type":"error"},{"inputs":[],"name":"AuctionNotActive","type":"error"},{"inputs":[],"name":"AuctionStillActive","type":"error"},{"inputs":[],"name":"ContractPaused","type":"error"},{"inputs":[],"name":"DecryptionAlreadyPending","type":"error"},{"inputs":[],"name":"ECDSAInvalidSignature","type":"error"},{"inputs":[{"internalType":"uint256","name":"length","type":"uint256"}],"name":"ECDSAInvalidSignatureLength","type":"error"},{"inputs":[{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"ECDSAInvalidSignatureS","type":"error"},{"inputs":[],"name":"EmergencyDelayNotMet","type":"error"},{"inputs":[],"name":"HandlesAlreadySavedForRequestID","type":"error"},{"inputs":[],"name":"InsufficientDeposit","type":"error"},{"inputs":[],"name":"InvalidAddress","type":"error"},{"inputs":[],"name":"InvalidAmount","type":"error"},{"inputs":[],"name":"InvalidDecryptionData","type":"error"},{"inputs":[],"name":"InvalidKMSSignatures","type":"error"},{"inputs":[],"name":"InvalidShortString","type":"error"},{"inputs":[],"name":"InvalidSignature","type":"error"},{"inputs":[],"name":"InvalidState","type":"error"},{"inputs":[],"name":"MaxBiddersReached","type":"error"},{"inputs":[],"name":"NoBidders","type":"error"},{"inputs":[],"name":"NoHandleFoundForRequestID","type":"error"},{"inputs":[],"name":"NoRefundAvailable","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"inputs":[],"name":"Unauthorized","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":true,"internalType":"address","name":"winner","type":"address"},{"indexed":false,"internalType":"uint256","name":"finalBid","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"AuctionFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"oldBeneficiary","type":"address"},{"indexed":true,"internalType":"address","name":"newBeneficiary","type":"address"}],"name":"BeneficiaryUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"bidder","type":"address"},{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"BidReceived","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestID","type":"uint256"}],"name":"DecryptionFulfilled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"requestId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"},{"indexed":false,"internalType":"bytes32[]","name":"handles","type":"bytes32[]"}],"name":"DecryptionRequested","type":"event"},{"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"string","name":"reason","type":"string"}],"name":"EmergencyActivated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundAvailable","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"round","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"RoundStarted","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"enum FHEAuction.AuctionState","name":"from","type":"uint8"},{"indexed":false,"internalType":"enum FHEAuction.AuctionState","name":"to","type":"uint8"}],"name":"StateChanged","type":"event"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"AUCTION_DURATION","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"BATCH_REFUND_SIZE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"EMERGENCY_DELAY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"KMS_THRESHOLD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MAX_BIDDERS_PER_ROUND","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionEndTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"auctionState","outputs":[{"internalType":"enum FHEAuction.AuctionState","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address[]","name":"claimants","type":"address[]"}],"name":"batchClaimRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"beneficiary","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"externalEuint64","name":"encryptedBid","type":"bytes32"},{"internalType":"bytes","name":"inputProof","type":"bytes"},{"internalType":"bytes32","name":"publicKey","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"bid","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"claimRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"currentLeadBidder","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentLeadDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentRound","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"deposits","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"emergencyEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"emergencyWithdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"forceFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"gatewayContract","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAuctionInfo","outputs":[{"internalType":"uint256","name":"round","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum FHEAuction.AuctionState","name":"state","type":"uint8"},{"internalType":"uint256","name":"maxDeposit","type":"uint256"},{"internalType":"address","name":"leadBidder","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"bidder","type":"address"}],"name":"getBidderInfo","outputs":[{"internalType":"uint256","name":"deposit","type":"uint256"},{"internalType":"bool","name":"hasBidded","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getProtocolId","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"getRoundBidders","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isEmergencyAvailable","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minBidDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"bytes","name":"cleartexts","type":"bytes"},{"internalType":"bytes","name":"decryptionProof","type":"bytes"}],"name":"onDecryptionCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pauserSet","outputs":[{"internalType":"contract IPauserSet","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"pendingRefunds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"protocolId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"requestFinalize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"unpauseAuction","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newBeneficiary","type":"address"}],"name":"updateBeneficiary","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"winningBid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"stateMutability":"payable","type":"receive"}];
+        // --- TRẠNG THÁI TOÀN CỤC ---
+        let provider, signer, account;
+        let fheAuctionContract;
+        let fhevmInstance = null; 
+        let timerInterval; 
 
-        // Global Variables
-        let provider;
-        let signer;
-        let contract;
-        let fhevmInstance;
-        let userAddress;
-        let isOwner = false;
-        let timerInterval;
+        // Các biến trạng thái chính
+        let minDepositWei = ethers.BigNumber.from(0); 
+        let auctionEndTime = 0; 
+        let isFinalized = false;
+        let isPaused = false;
+        let contractOwner = null; 
+        let currentRound = 0;
+        let auctionState = 0; // uint8 enum
+        let totalFees = 0;
+        let pendingRefund = 0;
+        let bidderInfo = {};
+        let roundBidders = [];
 
-        // Auction State Enum
-        const AuctionState = {
-            0: 'Active',
-            1: 'Ended',
-            2: 'Finalizing',
-            3: 'Finalized',
-            4: 'Emergency'
-        };
-
-        // Initialize on page load
-        window.addEventListener('load', async () => {
-            if (typeof window.ethereum !== 'undefined') {
-                console.log('MetaMask detected');
-            } else {
-                showAlert('Please install MetaMask to use this application', 'error');
-            }
-        });
-
-        // Connect Wallet
-        async function connectWallet() {
-            try {
-                if (typeof window.ethereum === 'undefined') {
-                    showAlert('Please install MetaMask', 'error');
-                    return;
-                }
-
-                // Request account access
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                signer = provider.getSigner();
-                userAddress = await signer.getAddress();
-
-                // Initialize contract
-                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-                // Initialize FHE
-                await initializeFHE();
-
-                // Check if user is owner
-                const ownerAddress = await contract.owner();
-                isOwner = userAddress.toLowerCase() === ownerAddress.toLowerCase();
-
-                // Update UI
-                updateWalletUI();
-                
-                if (isOwner) {
-                    document.getElementById('ownerTab').style.display = 'block';
-                }
-
-                // Load auction data
-                await refreshAuctionInfo();
-                await loadBidders();
-                await loadUserInfo();
-                
-                // Start timer
-                startTimer();
-
-                // Listen for events
-                setupEventListeners();
-
-                showAlert('Wallet connected successfully!', 'success');
-
-            } catch (error) {
-                console.error('Error connecting wallet:', error);
-                showAlert('Failed to connect wallet: ' + error.message, 'error');
+        // --- HÀM TIỆN ÍCH ---
+        function formatLogTime() {
+            const date = new Date();
+            return `[${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}]`;
+        }
+        
+        function logMessage(message, type = 'info') {
+            const container = document.getElementById('txContainer');
+            const logElement = document.createElement('p');
+            logElement.className = `log-line log-${type}`;
+            logElement.style.animationDelay = '0s';
+            logElement.innerHTML = `<span class="log-time">${formatLogTime()}</span> ${message}`;
+            container.prepend(logElement);
+            if (container.children.length > 50) {
+                container.removeChild(container.lastChild);
             }
         }
 
-        // Initialize FHE Instance
-        async function initializeFHE() {
-            try {
-                showAlert('Initializing FHE encryption...', 'info');
-                
-                // Create FHE instance
-                fhevmInstance = await window.fhevmjs.createInstance({
-                    chainId: 11155111, // Sepolia
-                    networkUrl: 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY', // Replace with your Infura key
-                    gatewayUrl: 'https://gateway.sepolia.zama.ai'
-                });
-
-                console.log('FHE instance initialized');
-            } catch (error) {
-                console.error('Error initializing FHE:', error);
-                showAlert('Failed to initialize FHE encryption', 'error');
-            }
+        function showNotification(message, type) {
+            console.log(`[Notification ${type.toUpperCase()}]: ${message}`);
         }
 
-        // Update Wallet UI
-        function updateWalletUI() {
-            const statusDiv = document.getElementById('connectionStatus');
-            const roleClass = isOwner ? 'role-owner' : 'role-user';
-            const roleText = isOwner ? 'Owner' : 'User';
-            
-            statusDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div>
-                        <div class="wallet-address">${userAddress.slice(0, 6)}...${userAddress.slice(-4)}</div>
-                        <span class="role-badge ${roleClass}">${roleText}</span>
-                    </div>
-                    <button class="btn btn-secondary" onclick="disconnectWallet()">Disconnect</button>
-                </div>
-            `;
-        }
+        // --- TIMER LOGIC ---
+        function updateTimerDisplay() {
+            const timerElement = document.getElementById('timeLeft');
+            const now = Date.now();
+            const remaining = auctionEndTime - now;
+            const ended = remaining <= 0;
 
-        // Disconnect Wallet
-        function disconnectWallet() {
-            provider = null;
-            signer = null;
-            contract = null;
-            userAddress = null;
-            isOwner = false;
-            
-            document.getElementById('connectionStatus').innerHTML = 
-                '<button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>';
-            
-            document.getElementById('ownerTab').style.display = 'none';
-            
-            if (timerInterval) {
+            if (ended) {
                 clearInterval(timerInterval);
+                timerElement.textContent = 'AUCTION CLOSED!';
+                logMessage('[TIMER] Auction end time reached. Checking finalization status...', 'info');
+                updateActionButtons();
+            } else {
+                const totalSeconds = Math.floor(remaining / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+
+                timerElement.textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             }
-            
-            showAlert('Wallet disconnected', 'info');
         }
 
-        // Refresh Auction Info
-        async function refreshAuctionInfo() {
-            if (!contract) return;
+        function startAuctionTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            updateTimerDisplay();
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+        }
 
+        // --- FHE SDK INITIALIZATION ---
+        async function initFhevmSdk() {
+            const fheStatus = document.getElementById('fheStatus');
             try {
-                const info = await contract.getAuctionInfo();
-                const minDeposit = await contract.minBidDeposit();
-                const estimatedEnd = await contract.getEstimatedEndTime();
-                const currentBlock = await provider.getBlockNumber();
+                fheStatus.textContent = '[FHE SDK] Loading SDK from CDN...';
+                const mod = await import('https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js');
+                const { initSDK, createInstance, SepoliaConfig } = mod;
+
+                fheStatus.textContent = '[FHE SDK] Initializing WASM files...';
+                await initSDK(); 
+
+                fheStatus.textContent = '[FHE SDK] Creating FHE instance...';
+                fhevmInstance = await createInstance(SepoliaConfig);
+
+                fheStatus.textContent = '[FHE SDK] Public Key loaded. Ready for encryption.';
+                fheStatus.className = 'log-line log-confirmed';
+                logMessage('[FHE] SDK initialized successfully. Client-side encryption ready.', 'confirmed');
+
+            } catch (error) {
+                console.error("FHE SDK Initialization failed:", error);
+                fheStatus.textContent = '[FHE SDK] FAILED. Bid submission is disabled.';
+                fheStatus.className = 'log-line log-failed';
+                logMessage(`[FATAL] FHE SDK Failed: ${error.message || error}`, 'failed');
+            }
+        }
+        
+        // --- CẬP NHẬT GIAO DIỆN HÀNH ĐỘNG ---
+        function updateActionButtons() {
+            const now = Date.now();
+            const isOwner = account && contractOwner && account.toLowerCase() === contractOwner.toLowerCase();
+            const emergencyWindowOpen = now >= auctionEndTime + EMERGENCY_DELAY_MS;
+            const ended = now >= auctionEndTime;
+            const active = auctionState === 0; // Assume 0 = Active
+            
+            const bidBtn = document.getElementById('bidBtn');
+            const cancelBidBtn = document.getElementById('cancelBidBtn');
+            const claimRefundBtn = document.getElementById('claimRefundBtn');
+            const finalizeBtn = document.getElementById('finalizeBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const cancelDecryptionBtn = document.getElementById('cancelDecryptionBtn');
+            const emergencyEndBtn = document.getElementById('emergencyEndBtn');
+            const withdrawFeesBtn = document.getElementById('withdrawFeesBtn');
+            const batchClaimBtn = document.getElementById('batchClaimBtn');
+            const updateBeneficiaryBtn = document.getElementById('updateBeneficiaryBtn');
+            const updateFeeCollectorBtn = document.getElementById('updateFeeCollectorBtn');
+            
+            document.getElementById('ownerActions').style.display = isOwner ? 'block' : 'none';
+
+            // User Bid Actions
+            const canBid = account && fhevmInstance && active && !isPaused && !ended && !isFinalized;
+            bidBtn.disabled = !canBid;
+            bidBtn.textContent = canBid ? '> SUBMIT ENCRYPTED BID $' : (isPaused ? 'PAUSED' : (isFinalized ? 'FINALIZED' : 'AUCTION CLOSED'));
+
+            const canCancelBid = account && bidderInfo.hasBidded && !bidderInfo.cancelled && active && !ended;
+            cancelBidBtn.disabled = !canCancelBid;
+            cancelBidBtn.style.display = canCancelBid ? 'block' : 'none';
+
+            const canClaimRefund = account && pendingRefund > 0;
+            claimRefundBtn.disabled = !canClaimRefund;
+            claimRefundBtn.style.display = canClaimRefund ? 'block' : 'none';
+            document.getElementById('pendingRefund').textContent = `Pending Refund: ${ethers.utils.formatEther(pendingRefund)} ETH`;
+
+            // Owner Actions
+            if (!isOwner) return;
+
+            pauseBtn.disabled = false;
+            pauseBtn.textContent = isPaused ? '> UNPAUSE AUCTION' : '> PAUSE AUCTION';
+
+            updateBeneficiaryBtn.disabled = false;
+            updateFeeCollectorBtn.disabled = false;
+
+            withdrawFeesBtn.disabled = totalFees <= 0;
+            batchClaimBtn.disabled = false;
+
+            if (ended && !isFinalized && !isPaused) {
+                finalizeBtn.disabled = false;
+                finalizeBtn.textContent = '> REQUEST FINALIZE & REVEAL WINNER';
+            } else {
+                finalizeBtn.disabled = true;
+                finalizeBtn.textContent = isFinalized ? '> FINALIZED' : (isPaused ? 'PAUSED' : '> AWAIT END TIME');
+            }
+
+            if (auctionState === 1 && ended) { // Assume 1 = Finalizing
+                cancelDecryptionBtn.disabled = false;
+                cancelDecryptionBtn.textContent = '> CANCEL DECRYPTION (TIMEOUT)';
+            } else {
+                cancelDecryptionBtn.disabled = true;
+                cancelDecryptionBtn.style.display = 'none';
+            }
+
+            if (ended && !isFinalized && emergencyWindowOpen) {
+                emergencyEndBtn.disabled = false;
+                emergencyEndBtn.textContent = '> EMERGENCY END (+24H DELAY OPEN)';
+            } else {
+                emergencyEndBtn.disabled = true;
+                emergencyEndBtn.style.display = 'none';
+            }
+
+            document.getElementById('auctionStatus').textContent = auctionState === 3 ? 'FINALIZED' : (isPaused ? 'PAUSED' : (ended ? 'ENDED' : 'ACTIVE')); // Assume 3 = Finalized
+        }
+
+        // --- CONTRACT STATE & EVENTS --- 
+        async function getAuctionState() {
+            try {
+                if (!fheAuctionContract) return;
+
+                const auctionInfo = await fheAuctionContract.getAuctionInfo();
+                const [totalFeesWei, ownerAddr] = await Promise.all([
+                    fheAuctionContract.totalCollectedFees(),
+                    fheAuctionContract.owner()
+                ]);
+
+                // Update globals
+                currentRound = auctionInfo.round.toNumber();
+                auctionEndTime = (auctionInfo.endBlock.toNumber() * 12000); // Approx block time 12s
+                auctionState = auctionInfo.state.toNumber();
+                isFinalized = auctionState === 3; // Finalized
+                contractOwner = ownerAddr;
+                totalFees = totalFeesWei;
+
+                // Bidder specific if connected
+                if (account) {
+                    bidderInfo = await fheAuctionContract.getBidderInfo(account);
+                    pendingRefund = await fheAuctionContract.pendingRefunds(account);
+                    roundBidders = await fheAuctionContract.getRoundBidders();
+                }
 
                 // Update UI
-                document.getElementById('roundNumber').textContent = info[0].toString();
-                document.getElementById('infoRound').textContent = info[0].toString();
-                document.getElementById('infoEndBlock').textContent = info[1].toString();
-                document.getElementById('infoBidders').textContent = info[5].toString();
-                document.getElementById('infoMinDeposit').textContent = 
-                    ethers.utils.formatEther(minDeposit) + ' ETH';
+                document.getElementById('minDepositValue').textContent = `${ethers.utils.formatEther(minDepositWei)} ETH`;
+                document.getElementById('currentRound').textContent = `#${currentRound}`;
+                document.getElementById('leadBidder').textContent = auctionInfo.leadBidder === ethers.constants.AddressZero 
+                    ? '0x0000...' : `${auctionInfo.leadBidder.substring(0, 6)}...`;
+                document.getElementById('totalFees').textContent = `${ethers.utils.formatEther(totalFees)} ETH`;
 
-                // Update status badge
-                const stateNum = info[2];
-                const statusBadge = document.getElementById('auctionStatus');
-                statusBadge.textContent = AuctionState[stateNum];
-                statusBadge.className = 'status-badge';
-                
-                if (stateNum === 0) {
-                    statusBadge.classList.add('status-active');
-                } else if (stateNum === 1) {
-                    statusBadge.classList.add('status-ended');
-                } else if (stateNum === 2) {
-                    statusBadge.classList.add('status-finalizing');
-                }
-
-                // Update winner info if finalized
-                if (stateNum === 3) {
-                    const winner = await contract.currentLeadBidder();
-                    const winBid = await contract.winningBid();
-                    
-                    if (winner !== ethers.constants.AddressZero) {
-                        document.getElementById('winnerCard').style.display = 'block';
-                        document.getElementById('winnerAddress').textContent = 
-                            winner.slice(0, 6) + '...' + winner.slice(-4);
-                        document.getElementById('winningBid').textContent = 
-                            ethers.utils.formatEther(winBid) + ' ETH';
-                    }
+                if (isFinalized) {
+                    const leadDeposit = await fheAuctionContract.currentLeadDeposit();
+                    document.getElementById('currentBid').textContent = `${ethers.utils.formatEther(leadDeposit)} ETH`;
                 } else {
-                    document.getElementById('winnerCard').style.display = 'none';
+                    document.getElementById('currentBid').textContent = 'ENCRYPTED';
                 }
 
-                // Update owner panel if owner
-                if (isOwner) {
-                    await updateOwnerPanel();
-                }
+                // Update bidder info
+                document.getElementById('bidderInfo').innerHTML = `
+                    <p>Deposit: ${ethers.utils.formatEther(bidderInfo.deposit)} ETH</p>
+                    <p>Has Bidded: ${bidderInfo.hasBidded}</p>
+                    <p>Cancelled: ${bidderInfo.cancelled}</p>
+                `;
 
-            } catch (error) {
-                console.error('Error refreshing auction info:', error);
-                showAlert('Failed to refresh auction info', 'error');
-            }
-        }
+                // Update round bidders
+                const biddersList = document.getElementById('roundBidders');
+                biddersList.innerHTML = roundBidders.map(addr => `<p>${addr.substring(0, 10)}...</p>`).join('') || '<p>No bidders yet.</p>';
 
-        // Load Bidders List
-        async function loadBidders() {
-            if (!contract) return;
-
-            try {
-                const bidders = await contract.getRoundBidders();
-                const listDiv = document.getElementById('biddersList');
+                logMessage('[CONTRACT] State updated: Round, End Block, State, Bidders.', 'info');
+                startAuctionTimer();
+                updateActionButtons();
                 
-                document.getElementById('bidderCount').textContent = bidders.length + ' bidders';
-
-                if (bidders.length === 0) {
-                    listDiv.innerHTML = '<div class="loading">No bidders yet</div>';
-                    return;
-                }
-
-                let html = '';
-                for (const bidder of bidders) {
-                    const info = await contract.getBidderInfo(bidder);
-                    const deposit = ethers.utils.formatEther(info[0]);
-                    const cancelled = info[2];
-
-                    if (!cancelled) {
-                        html += `
-                            <div class="bidder-item">
-                                <span class="bidder-address">${bidder.slice(0, 8)}...${bidder.slice(-6)}</span>
-                                <span class="bidder-deposit">${deposit} ETH</span>
-                            </div>
-                        `;
-                    }
-                }
-
-                listDiv.innerHTML = html || '<div class="loading">No active bidders</div>';
-
             } catch (error) {
-                console.error('Error loading bidders:', error);
+                console.error("Failed to fetch auction state:", error);
+                logMessage(`[ERROR] Failed to fetch state: ${error.message}`, 'failed');
             }
         }
 
-        // Load User Info
-        async function loadUserInfo() {
-            if (!contract || !userAddress) return;
+        function listenToEvents() {
+            if (!fheAuctionContract) return;
+            fheAuctionContract.removeAllListeners();
 
-            try {
-                const info = await contract.getBidderInfo(userAddress);
-                const refund = await contract.pendingRefunds(userAddress);
+            fheAuctionContract.on("RoundStarted", (round, endBlock, estimatedEndTime) => {
+                logMessage(`[NEW ROUND] #${round.toNumber()} started. Ends ~${new Date(estimatedEndTime.toNumber() * 1000).toLocaleString()}`, 'confirmed');
+                getAuctionState();
+            });
 
-                document.getElementById('userDeposit').textContent = 
-                    ethers.utils.formatEther(info[0]) + ' ETH';
-                document.getElementById('userHasBid').textContent = info[1] ? 'Yes' : 'No';
-                document.getElementById('userCancelled').textContent = info[2] ? 'Yes' : 'No';
-                document.getElementById('userRefund').textContent = 
-                    ethers.utils.formatEther(refund) + ' ETH';
+            fheAuctionContract.on("AuctionFinished", (round, winner, finalBid, platformFee) => {
+                logMessage(`[FINISH] Round ${round}: Winner ${winner.substring(0,6)}... Bid: ${ethers.utils.formatEther(finalBid)} ETH (Fee: ${ethers.utils.formatEther(platformFee)})`, 'confirmed');
+                getAuctionState();
+            });
 
-            } catch (error) {
-                console.error('Error loading user info:', error);
-            }
+            fheAuctionContract.on("BidPlaced", (bidder, round, depositAmount, blockNumber) => {
+                logMessage(`[BID] Round ${round}: ${bidder.substring(0,6)}... deposited ${ethers.utils.formatEther(depositAmount)} ETH`, 'info');
+                getAuctionState();
+            });
+
+            fheAuctionContract.on("RefundClaimed", (recipient, amount) => {
+                logMessage(`[REFUND] ${recipient.substring(0,6)}... claimed ${ethers.utils.formatEther(amount)} ETH`, 'confirmed');
+                getAuctionState();
+            });
+
+            fheAuctionContract.on("PlatformFeeCollected", (collector, amount) => {
+                logMessage(`[FEES] Collected ${ethers.utils.formatEther(amount)} ETH to ${collector.substring(0,6)}...`, 'info');
+                getAuctionState();
+            });
+
+            fheAuctionContract.on("StateChanged", (from, to) => {
+                logMessage(`[STATE] Changed from ${from} to ${to}`, 'info');
+                getAuctionState();
+            });
+
+            logMessage('[EVENT] Listeners active for all events.', 'info');
         }
 
-        // Place Bid
-        async function placeBid() {
-            if (!contract || !fhevmInstance) {
-                showAlert('Please connect wallet first', 'error');
+        // --- WALLET & CONNECTION ---
+        async function connectWallet() {
+            if (typeof window.ethereum === 'undefined') {
+                showNotification('ERROR: MetaMask not detected.', 'error');
                 return;
             }
 
             try {
-                const bidAmount = document.getElementById('bidAmount').value;
-                const depositAmount = document.getElementById('depositAmount').value;
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: `0x${SEPOLIA_CHAIN_ID.toString(16)}` }],
+                });
 
-                if (!bidAmount || !depositAmount) {
-                    showAlert('Please enter both bid and deposit amounts', 'error');
-                    return;
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                account = await signer.getAddress();
+                
+                fheAuctionContract = new ethers.Contract(CONTRACT_ADDRESS, FHE_AUCTION_ABI, signer);
+                
+                minDepositWei = await fheAuctionContract.getMinBidDeposit ? await fheAuctionContract.getMinBidDeposit() : ethers.BigNumber.from(0);
+                await getAuctionState();
+                listenToEvents();
+
+                document.getElementById('walletStatus').innerHTML = `
+                    <p class="log-line log-confirmed">[STATUS] Wallet: CONNECTED & READY</p>
+                    <p class="log-line">[ADDRESS] ${account.substring(0, 10)}... ${account.toLowerCase() === contractOwner?.toLowerCase() ? '(OWNER)' : ''}</p>
+                    <p class="log-line">[NETWORK] **Sepolia FHEVM**</p>
+                `;
+
+                document.getElementById('connectBtn').textContent = '> CONNECTION ESTABLISHED';
+                document.getElementById('connectBtn').disabled = true;
+                
+            } catch (error) {
+                console.error(error);
+                logMessage(`[ERROR] Connection failed: ${error.message || error}`, 'failed');
+            }
+        }
+        
+        // --- BID FUNCTIONS ---
+        async function placeBid() {
+            const bidBtn = document.getElementById('bidBtn');
+            const bidInput = document.getElementById('bidAmount');
+            const depositInput = document.getElementById('depositAmount');
+
+            if (!fhevmInstance || !account) { showNotification('FHE SDK not ready or Wallet disconnected.', 'error'); return; }
+
+            try {
+                bidBtn.disabled = true;
+                const bidEth = parseFloat(bidInput.value);
+                const depositEth = parseFloat(depositInput.value);
+
+                if (!bidEth || !depositEth) { throw new Error("Enter both Bid Amount and Deposit."); }
+
+                const bidWei = ethers.utils.parseEther(bidEth.toString());
+                const depositWei = ethers.utils.parseEther(depositEth.toString());
+                
+                if (depositWei.lt(minDepositWei)) {
+                    throw new Error(`Deposit must >= ${ethers.utils.formatEther(minDepositWei)} ETH.`);
                 }
-
-                if (parseFloat(depositAmount) < parseFloat(bidAmount)) {
-                    showAlert('Deposit must be greater than or equal to bid amount', 'error');
-                    return;
+                if (bidWei.gt(ethers.BigNumber.from("18446744073709551615"))) {
+                    throw new Error("Bid exceeds euint64 limit (~18.4 ETH).");
                 }
+                
+                logMessage('[FHE] Encrypting bid...', 'pending');
+                const encryptedBid = fhevmInstance.encrypt(bidWei.toString(), 'euint64'); 
+                const inputProof = encryptedBid.getProof();
+                const publicKey = fhevmInstance.getPublicKey().pubKey;
+                
+                logMessage('[EIP712] Signing public key...', 'pending');
 
-                showAlert('Encrypting your bid...', 'info');
-
-                // Convert to Wei
-                const bidWei = ethers.utils.parseEther(bidAmount);
-                const depositWei = ethers.utils.parseEther(depositAmount);
-
-                // Create encrypted input
-                const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, userAddress);
-                input.add64(bidWei.toBigInt());
-                const encryptedData = await input.encrypt();
-
-                // Generate EIP-712 signature
                 const domain = {
-                    name: 'FHEAuction',
-                    version: '3',
-                    chainId: 11155111,
-                    verifyingContract: CONTRACT_ADDRESS
+                    name: EIP712_DOMAIN_NAME,
+                    version: EIP712_DOMAIN_VERSION,
+                    chainId: SEPOLIA_CHAIN_ID,
+                    verifyingContract: CONTRACT_ADDRESS,
                 };
-
                 const types = {
                     PublicKey: [{ name: 'key', type: 'bytes32' }]
                 };
-
-                const value = {
-                    key: encryptedData.handles[0]
-                };
-
-                showAlert('Please sign the transaction...', 'info');
+                const value = { key: `0x${publicKey}` };
+                
                 const signature = await signer._signTypedData(domain, types, value);
-
-                // Submit bid
-                showAlert('Submitting encrypted bid...', 'info');
-                const tx = await contract.bid(
-                    encryptedData.handles[0],
-                    encryptedData.inputProof,
-                    encryptedData.handles[0],
-                    signature,
-                    { 
-                        value: depositWei,
-                        gasLimit: 500000
-                    }
+                
+                logMessage('[TX] Submitting bid...', 'pending');
+                const tx = await fheAuctionContract.bid(
+                    encryptedBid.getEuint64(), 
+                    inputProof, 
+                    value.key, 
+                    signature, 
+                    { value: depositWei, gasLimit: 800000 }
                 );
-
-                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
-                await tx.wait();
-
-                showAlert('Bid placed successfully! 🎉', 'success');
                 
-                // Refresh data
-                await refreshAuctionInfo();
-                await loadBidders();
-                await loadUserInfo();
-
-                // Clear inputs
-                document.getElementById('bidAmount').value = '';
-                document.getElementById('depositAmount').value = '';
-
+                logMessage(`[TX:BID] ${tx.hash.substring(0, 10)}... Confirming...`, 'pending');
+                await tx.wait(); 
+                
+                logMessage('[SUCCESS] Bid placed!', 'confirmed');
+                showNotification(`Bid: ${bidEth} ETH, Deposit: ${depositEth} ETH`, 'success');
+                getAuctionState();
+                
             } catch (error) {
-                console.error('Error placing bid:', error);
-                showAlert('Failed to place bid: ' + error.message, 'error');
+                console.error("Bid Failed:", error);
+                logMessage(`[ERROR] Bid failed: ${error.message || error.reason}`, 'failed');
+                showNotification(`Bid failed: ${error.message || error.reason}`, 'error');
+            } finally {
+                bidBtn.disabled = false;
             }
         }
 
-        // Cancel Bid
         async function cancelBid() {
-            if (!contract) {
-                showAlert('Please connect wallet first', 'error');
-                return;
-            }
-
             try {
-                if (!confirm('Are you sure you want to cancel your bid? You will receive a full refund.')) {
-                    return;
-                }
-
-                showAlert('Cancelling bid...', 'info');
-                const tx = await contract.cancelBid();
-                
-                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
+                const btn = document.getElementById('cancelBidBtn');
+                btn.disabled = true;
+                logMessage('[TX] Cancelling bid...', 'pending');
+                const tx = await fheAuctionContract.cancelBid({ gasLimit: 300000 });
                 await tx.wait();
-
-                showAlert('Bid cancelled successfully!', 'success');
-                
-                // Refresh data
-                await refreshAuctionInfo();
-                await loadBidders();
-                await loadUserInfo();
-
+                logMessage('[SUCCESS] Bid cancelled & refunded.', 'confirmed');
+                getAuctionState();
             } catch (error) {
-                console.error('Error cancelling bid:', error);
-                showAlert('Failed to cancel bid: ' + error.message, 'error');
+                logMessage(`[ERROR] Cancel failed: ${error.message}`, 'failed');
+            } finally {
+                btn.disabled = false;
             }
         }
 
-        // Claim Refund
         async function claimRefund() {
-            if (!contract) {
-                showAlert('Please connect wallet first', 'error');
-                return;
-            }
-
             try {
-                const refund = await contract.pendingRefunds(userAddress);
-                
-                if (refund.eq(0)) {
-                    showAlert('No refund available', 'info');
-                    return;
-                }
-
-                showAlert('Claiming refund...', 'info');
-                const tx = await contract.claimRefund();
-                
-                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
+                const btn = document.getElementById('claimRefundBtn');
+                btn.disabled = true;
+                logMessage('[TX] Claiming refund...', 'pending');
+                const tx = await fheAuctionContract.claimRefund({ gasLimit: 300000 });
                 await tx.wait();
-
-                showAlert('Refund claimed successfully! 💰', 'success');
-                
-                // Refresh data
-                await loadUserInfo();
-
+                logMessage('[SUCCESS] Refund claimed!', 'confirmed');
+                getAuctionState();
             } catch (error) {
-                console.error('Error claiming refund:', error);
-                showAlert('Failed to claim refund: ' + error.message, 'error');
+                logMessage(`[ERROR] Claim failed: ${error.message}`, 'failed');
+            } finally {
+                btn.disabled = false;
             }
         }
 
-        // Start Timer
-        function startTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-            }
-
-            timerInterval = setInterval(async () => {
-                if (!contract) return;
-
-                try {
-                    const endTime = await contract.getEstimatedEndTime();
-                    const now = Math.floor(Date.now() / 1000);
-                    const remaining = endTime - now;
-
-                    if (remaining <= 0) {
-                        document.getElementById('timerValue').textContent = '00:00:00';
-                        document.getElementById('timerSubtext').textContent = 'Auction Ended';
-                        clearInterval(timerInterval);
-                        return;
-                    }
-
-                    const hours = Math.floor(remaining / 3600);
-                    const minutes = Math.floor((remaining % 3600) / 60);
-                    const seconds = remaining % 60;
-
-                    document.getElementById('timerValue').textContent = 
-                        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-                } catch (error) {
-                    console.error('Error updating timer:', error);
-                }
-            }, 1000);
-        }
-
-        // Setup Event Listeners
-        function setupEventListeners() {
-            if (!contract) return;
-
-            contract.on('BidPlaced', (bidder, round, deposit, block, timestamp) => {
-                console.log('BidPlaced event:', { bidder, round: round.toString(), deposit: deposit.toString() });
-                showAlert(`New bid placed: ${ethers.utils.formatEther(deposit)} ETH`, 'success');
-                loadBidders();
-                refreshAuctionInfo();
-            });
-
-            contract.on('AuctionFinished', (round, winner, finalBid, fee, timestamp) => {
-                console.log('AuctionFinished event:', { winner, finalBid: finalBid.toString() });
-                showAlert(`Auction finished! Winner: ${winner.slice(0, 8)}...`, 'success');
-                refreshAuctionInfo();
-            });
-
-            contract.on('BidCancelled', (bidder, round, refund, timestamp) => {
-                console.log('BidCancelled event:', { bidder, refund: refund.toString() });
-                if (bidder.toLowerCase() === userAddress.toLowerCase()) {
-                    showAlert('Your bid was cancelled', 'info');
-                    loadUserInfo();
-                }
-                loadBidders();
-            });
-
-            contract.on('RefundClaimed', (recipient, amount) => {
-                console.log('RefundClaimed event:', { recipient, amount: amount.toString() });
-                if (recipient.toLowerCase() === userAddress.toLowerCase()) {
-                    showAlert(`Refund claimed: ${ethers.utils.formatEther(amount)} ETH`, 'success');
-                    loadUserInfo();
-                }
-            });
-        }
-
-        // Update Owner Panel
-        async function updateOwnerPanel() {
-            if (!isOwner || !contract) return;
+        // --- OWNER FUNCTIONS ---
+        async function callOwnerFunction(functionName, params = []) {
+            if (!fheAuctionContract || !account) return;
+            
+            const btn = document.getElementById(functionName + 'Btn') || document.getElementById('finalizeBtn');
+            btn.disabled = true;
 
             try {
-                const owner = await contract.owner();
-                const beneficiary = await contract.beneficiary();
-                const feeCollector = await contract.feeCollector();
-                const paused = await contract.paused();
-                const state = await contract.auctionState();
-                const fees = await contract.totalCollectedFees();
+                logMessage(`[OWNER] Executing ${functionName}...`, 'pending');
+                
+                const gasLimit = functionName.includes('Finalize') || functionName.includes('batch') ? 1000000 : 500000;
+                const iface = fheAuctionContract.interface;
+                const data = iface.encodeFunctionData(functionName, params);
 
-                document.getElementById('contractOwner').textContent = owner.slice(0, 10) + '...' + owner.slice(-8);
-                document.getElementById('contractBeneficiary').textContent = beneficiary.slice(0, 10) + '...' + beneficiary.slice(-8);
-                document.getElementById('contractFeeCollector').textContent = feeCollector.slice(0, 10) + '...' + feeCollector.slice(-8);
-                document.getElementById('contractPaused').textContent = paused ? 'Yes' : 'No';
-                document.getElementById('contractState').textContent = AuctionState[state];
-                document.getElementById('totalFees').textContent = ethers.utils.formatEther(fees) + ' ETH';
+                const tx = await signer.sendTransaction({
+                    to: CONTRACT_ADDRESS,
+                    data: data,
+                    gasLimit: gasLimit, 
+                    value: 0
+                });
+                
+                logMessage(`[TX:${functionName.toUpperCase()}] ${tx.hash.substring(0, 10)}...`, 'pending');
+                await tx.wait(); 
 
+                logMessage(`[SUCCESS] ${functionName} executed.`, 'confirmed');
+                getAuctionState();
+                
             } catch (error) {
-                console.error('Error updating owner panel:', error);
+                const msg = error.reason || error.message.split('execution reverted: ')[1] || "Unknown";
+                logMessage(`[ERROR] ${functionName} failed: ${msg}`, 'failed');
+            } finally {
+                btn.disabled = false;
             }
         }
 
-        // Request Finalize (Owner)
-        async function requestFinalize() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can finalize auction', 'error');
-                return;
-            }
-
-            try {
-                if (!confirm('Finalize the auction? This will decrypt all bids and determine the winner.')) {
-                    return;
-                }
-
-                showAlert('Requesting finalization...', 'info');
-                const tx = await contract.requestFinalize({ gasLimit: 1000000 });
-                
-                showAlert('Transaction submitted. Waiting for confirmation...', 'info');
-                await tx.wait();
-
-                showAlert('Auction finalization requested. Waiting for KMS decryption...', 'success');
-                
-                await refreshAuctionInfo();
-
-            } catch (error) {
-                console.error('Error finalizing auction:', error);
-                showAlert('Failed to finalize: ' + error.message, 'error');
-            }
+        async function requestFinalizeAuction() { callOwnerFunction('requestFinalize'); }
+        async function togglePauseAuction() { callOwnerFunction(isPaused ? 'unpauseAuction' : 'pauseAuction'); }
+        async function cancelDecryption() { callOwnerFunction('cancelDecryption'); }
+        async function emergencyEndAuction() { 
+            const reason = prompt('Enter emergency reason:') || 'Emergency end requested';
+            callOwnerFunction('emergencyEnd', [reason]); 
         }
-
-        // Update Beneficiary (Owner)
+        async function withdrawPlatformFees() { callOwnerFunction('withdrawPlatformFees'); }
+        async function batchClaimRefunds() {
+            const claimantsText = document.getElementById('claimantsList').value;
+            const claimants = claimantsText.split('\n').map(line => line.trim()).filter(addr => ethers.utils.isAddress(addr));
+            if (claimants.length === 0) return showNotification('Enter valid addresses.', 'error');
+            callOwnerFunction('batchClaimRefunds', [claimants]);
+        }
         async function updateBeneficiary() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can update beneficiary', 'error');
-                return;
-            }
-
-            try {
-                const newBeneficiary = document.getElementById('newBeneficiary').value;
-                
-                if (!ethers.utils.isAddress(newBeneficiary)) {
-                    showAlert('Invalid address', 'error');
-                    return;
-                }
-
-                showAlert('Updating beneficiary...', 'info');
-                const tx = await contract.updateBeneficiary(newBeneficiary);
-                
-                await tx.wait();
-                showAlert('Beneficiary updated successfully!', 'success');
-                
-                await updateOwnerPanel();
-                document.getElementById('newBeneficiary').value = '';
-
-            } catch (error) {
-                console.error('Error updating beneficiary:', error);
-                showAlert('Failed to update beneficiary: ' + error.message, 'error');
-            }
+            const newAddr = document.getElementById('newBeneficiary').value;
+            if (!ethers.utils.isAddress(newAddr)) return showNotification('Invalid address.', 'error');
+            callOwnerFunction('updateBeneficiary', [newAddr]);
         }
-
-        // Update Fee Collector (Owner)
         async function updateFeeCollector() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can update fee collector', 'error');
-                return;
-            }
-
-            try {
-                const newFeeCollector = document.getElementById('newFeeCollector').value;
-                
-                if (!ethers.utils.isAddress(newFeeCollector)) {
-                    showAlert('Invalid address', 'error');
-                    return;
-                }
-
-                showAlert('Updating fee collector...', 'info');
-                const tx = await contract.updateFeeCollector(newFeeCollector);
-                
-                await tx.wait();
-                showAlert('Fee collector updated successfully!', 'success');
-                
-                await updateOwnerPanel();
-                document.getElementById('newFeeCollector').value = '';
-
-            } catch (error) {
-                console.error('Error updating fee collector:', error);
-                showAlert('Failed to update fee collector: ' + error.message, 'error');
-            }
+            const newAddr = document.getElementById('newFeeCollector').value;
+            if (!ethers.utils.isAddress(newAddr)) return showNotification('Invalid address.', 'error');
+            callOwnerFunction('updateFeeCollector', [newAddr]);
         }
 
-        // Pause Auction (Owner)
-        async function pauseAuction() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can pause auction', 'error');
-                return;
-            }
+        // --- EVENT LISTENERS INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('connectBtn').addEventListener('click', connectWallet);
+            document.getElementById('bidBtn').addEventListener('click', placeBid);
+            document.getElementById('cancelBidBtn').addEventListener('click', cancelBid);
+            document.getElementById('claimRefundBtn').addEventListener('click', claimRefund);
+            document.getElementById('finalizeBtn').addEventListener('click', requestFinalizeAuction); 
+            document.getElementById('pauseBtn').addEventListener('click', togglePauseAuction);
+            document.getElementById('cancelDecryptionBtn').addEventListener('click', cancelDecryption);
+            document.getElementById('emergencyEndBtn').addEventListener('click', emergencyEndAuction);
+            document.getElementById('withdrawFeesBtn').addEventListener('click', withdrawPlatformFees);
+            document.getElementById('batchClaimBtn').addEventListener('click', batchClaimRefunds);
+            document.getElementById('updateBeneficiaryBtn').addEventListener('click', updateBeneficiary);
+            document.getElementById('updateFeeCollectorBtn').addEventListener('click', updateFeeCollector);
 
-            try {
-                if (!confirm('Pause the auction?')) {
-                    return;
-                }
-
-                showAlert('Pausing auction...', 'info');
-                const tx = await contract.pauseAuction();
-                
-                await tx.wait();
-                showAlert('Auction paused', 'success');
-                
-                await updateOwnerPanel();
-
-            } catch (error) {
-                console.error('Error pausing auction:', error);
-                showAlert('Failed to pause: ' + error.message, 'error');
-            }
-        }
-
-        // Unpause Auction (Owner)
-        async function unpauseAuction() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can unpause auction', 'error');
-                return;
-            }
-
-            try {
-                showAlert('Unpausing auction...', 'info');
-                const tx = await contract.unpauseAuction();
-                
-                await tx.wait();
-                showAlert('Auction unpaused', 'success');
-                
-                await updateOwnerPanel();
-
-            } catch (error) {
-                console.error('Error unpausing auction:', error);
-                showAlert('Failed to unpause: ' + error.message, 'error');
-            }
-        }
-
-        // Withdraw Fees (Owner)
-        async function withdrawFees() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can withdraw fees', 'error');
-                return;
-            }
-
-            try {
-                const fees = await contract.totalCollectedFees();
-                
-                if (fees.eq(0)) {
-                    showAlert('No fees to withdraw', 'info');
-                    return;
-                }
-
-                showAlert('Withdrawing platform fees...', 'info');
-                const tx = await contract.withdrawPlatformFees();
-                
-                await tx.wait();
-                showAlert(`Fees withdrawn: ${ethers.utils.formatEther(fees)} ETH`, 'success');
-                
-                await updateOwnerPanel();
-
-            } catch (error) {
-                console.error('Error withdrawing fees:', error);
-                showAlert('Failed to withdraw fees: ' + error.message, 'error');
-            }
-        }
-
-        // Emergency End (Owner)
-        async function emergencyEnd() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can trigger emergency end', 'error');
-                return;
-            }
-
-            try {
-                const reason = prompt('Enter reason for emergency end:');
-                if (!reason) return;
-
-                if (!confirm('⚠️ EMERGENCY END: This will refund all bidders and cannot be undone. Continue?')) {
-                    return;
-                }
-
-                showAlert('Triggering emergency end...', 'info');
-                const tx = await contract.emergencyEnd(reason, { gasLimit: 1000000 });
-                
-                await tx.wait();
-                showAlert('Emergency end executed', 'success');
-                
-                await refreshAuctionInfo();
-
-            } catch (error) {
-                console.error('Error in emergency end:', error);
-                showAlert('Failed to execute emergency end: ' + error.message, 'error');
-            }
-        }
-
-        // Force Finalize (Owner)
-        async function forceFinalize() {
-            if (!contract || !isOwner) {
-                showAlert('Only owner can force finalize', 'error');
-                return;
-            }
-
-            try {
-                if (!confirm('⚠️ FORCE FINALIZE: This should only be used if decryption is stuck. Continue?')) {
-                    return;
-                }
-
-                showAlert('Force finalizing...', 'info');
-                const tx = await contract.forceFinalize({ gasLimit: 500000 });
-                
-                await tx.wait();
-                showAlert('Auction force finalized', 'success');
-                
-                await refreshAuctionInfo();
-
-            } catch (error) {
-                console.error('Error force finalizing:', error);
-                showAlert('Failed to force finalize: ' + error.message, 'error');
-            }
-        }
-
-        // Open History Modal
-        async function openHistoryModal() {
-            if (!contract) return;
-
-            document.getElementById('historyModal').classList.add('active');
-            document.getElementById('historyContent').innerHTML = '<div class="loading"><div class="spinner"></div>Loading history...</div>';
-
-            try {
-                const currentRound = await contract.currentRound();
-                const history = await contract.getRoundHistory(currentRound - 1, 20);
-
-                if (history.length === 0) {
-                    document.getElementById('historyContent').innerHTML = '<div class="loading">No bid history available</div>';
-                    return;
-                }
-
-                let html = '';
-                for (const item of history) {
-                    const date = new Date(item.timestamp.toNumber() * 1000);
-                    html += `
-                        <div class="history-item">
-                            <div><strong>Bidder:</strong> ${item.bidder.slice(0, 10)}...${item.bidder.slice(-8)}</div>
-                            <div><strong>Deposit:</strong> ${ethers.utils.formatEther(item.deposit)} ETH</div>
-                            <div class="history-time">${date.toLocaleString()}</div>
-                            ${item.withdrawn ? '<div style="color: #f5576c;">Withdrawn</div>' : ''}
-                        </div>
-                    `;
-                }
-
-                document.getElementById('historyContent').innerHTML = html;
-
-            } catch (error) {
-                console.error('Error loading history:', error);
-                document.getElementById('historyContent').innerHTML = '<div class="alert alert-error">Failed to load history</div>';
-            }
-        }
-
-        // Close History Modal
-        function closeHistoryModal() {
-            document.getElementById('historyModal').classList.remove('active');
-        }
-
-        // Switch Tabs
-        function switchTab(tab) {
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-
-            // Update content
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById(tab + 'Content').classList.add('active');
-        }
-
-        // Show Alert
-        function showAlert(message, type = 'info') {
-            const alertArea = document.getElementById('alertArea');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type}`;
-            alertDiv.textContent = message;
-            
-            alertArea.appendChild(alertDiv);
-            
-            setTimeout(() => {
-                alertDiv.style.opacity = '0';
-                setTimeout(() => alertDiv.remove(), 300);
-            }, 5000);
-        }
-
-        // Close modal on outside click
-        document.getElementById('historyModal').addEventListener('click', (e) => {
-            if (e.target.id === 'historyModal') {
-                closeHistoryModal();
-            }
+            await initFhevmSdk();
         });
 
-        // Handle network changes
-        if (window.ethereum) {
-            window.ethereum.on('chainChanged', () => {
-                window.location.reload();
-            });
-
-            window.ethereum.on('accountsChanged', (accounts) => {
-                if (accounts.length === 0) {
-                    disconnectWallet();
-                } else {
-                    window.location.reload();
-                }
-            });
-        }
     </script>
 </body>
 </html>
