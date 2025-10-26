@@ -48,18 +48,19 @@
 
         // --- CẤU HÌNH HỢP ĐỒNG CỦA BẠN ---
         const CONTRACT_ADDRESS = '0xf885102A2aC3eF23744DEFb89ce71aD2b458E0Ab';
-        // ABI TỐI THIỂU: Giả định có hàm nhận một giá trị bytes đã mã hóa
+        // ABI ĐÚNG CHO FHEAUCTION: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature) payable
+        // externalEuint64 là bytes32
         const CONTRACT_ABI = [
-            "function setEncryptedValue(bytes encryptedValue)", 
-            "function getLatestEncryptedValue() view returns (bytes)"
+            "function bid(bytes32 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature) payable",
+            "function getAuctionInfo() view returns (uint256 round, uint256 endBlock, uint256 state, uint256 maxDeposit, address leadBidder, uint256 validBidders)",
+            "function eip712Domain() view returns (bytes1 fields, string name, string version, uint256 chainId, address verifyingContract, bytes32 salt, uint256[] extensions)"
         ];
 
         let app, db, auth;
-        let provider, signer, contract, instance; // Thay relayerSDK bằng instance theo SDK Zama
+        let provider, signer, contract, instance; 
         let userWalletAddress = null;
         let isRelayerConnected = false;
         let isAuthReady = false;
-        let zamaClientKey = null; // Giữ để tương thích UI, nhưng SDK sử dụng public key của protocol
         
         // Khởi tạo Firebase và xác thực người dùng
         const initFirebase = async () => {
@@ -242,9 +243,6 @@
                 config.network = window.ethereum;
                 instance = await createInstance(config);
                 
-                // Không cần client key riêng, sử dụng public key của protocol
-                zamaClientKey = 'FHE-PublicKey';
-                
                 // KẾT THÚC TÍCH HỢP ZAMA SDK
 
                 isRelayerConnected = true;
@@ -290,21 +288,42 @@
                 bidBtn.disabled = true;
                 bidBtn.classList.replace('bg-indigo-600', 'bg-yellow-600');
 
-                updateStatus(`Đang mã hóa FHE và gửi bid ${amount} USD cho Target ${target}...`, 'info');
+                updateStatus(`Đang mã hóa FHE và gửi bid ${amount} ETH cho Target ${target}...`, 'info');
 
                 // TÍCH HỢP ZAMA SDK THỰC TẾ
                 
-                // 1. TẠO BUFFER VÀ THÊM GIÁ TRỊ (Mã hóa số tiền dưới dạng u64, đơn vị cent)
+                // 1. TẠO BUFFER VÀ THÊM GIÁ TRỊ (Mã hóa số tiền dưới dạng u64, đơn vị wei)
                 const buffer = instance.createEncryptedInput(CONTRACT_ADDRESS, userWalletAddress);
-                const amountInCents = BigInt(Math.floor(floatAmount * 100)); // Chuyển sang cent để tránh float
-                buffer.add64(amountInCents);
+                const amountInWei = ethers.parseEther(amount.toString()); // Giả định amount là ETH
+                buffer.add64(amountInWei); // u64 cho externalEuint64
                 
-                // 2. MÃ HÓA VÀ UPLOAD QUA RELAYER (Trả về handle bytes)
-                const { handles } = await buffer.encrypt();
-                const encryptedValue = handles[0]; // Bytes của encrypted amount
+                // 2. MÃ HÓA VÀ UPLOAD QUA RELAYER (Trả về handles bytes32[] và inputProof bytes)
+                const encryptedInput = await buffer.encrypt();
+                const encryptedBid = encryptedInput.handles[0]; // bytes32 handle cho externalEuint64
+                const inputProof = encryptedInput.inputProof; // bytes ZK proof
                 
-                // 3. GỬI GIAO DỊCH ĐẾN CONTRACT (Sử dụng handle bytes)
-                const txResponse = await contract.setEncryptedValue(encryptedValue);
+                // 3. CHUẨN BỊ EIP712 SIGNATURE CHO PUBLICKEY (là encryptedBid handle)
+                const network = await provider.getNetwork();
+                const domain = {
+                    name: 'FHEAuction',
+                    version: '3',
+                    chainId: network.chainId,
+                    verifyingContract: CONTRACT_ADDRESS,
+                };
+                const types = {
+                    PublicKey: [
+                        { name: 'key', type: 'bytes32' }
+                    ]
+                };
+                const value = {
+                    key: encryptedBid
+                };
+                const signature = await signer._signTypedData(domain, types, value);
+
+                // 4. GỬI GIAO DỊCH ĐẾN CONTRACT bid(encryptedBid, inputProof, encryptedBid, signature) với value deposit
+                const txResponse = await contract.bid(encryptedBid, inputProof, encryptedBid, signature, {
+                    value: amountInWei // Gửi deposit = bid amount (giả định)
+                });
                 const receipt = await txResponse.wait();
                 const txHash = txResponse.hash;
 
@@ -352,8 +371,8 @@
         <p class="text-center text-gray-400 mb-8">
             Hợp đồng: <span class="text-indigo-400 font-mono">${CONTRACT_ADDRESS}</span>
             <br>
-            Tích hợp FHEVM Relayer SDK. Số tiền bid được mã hóa dưới dạng u64 (cent) và gửi handle bytes đến contract.
-            <br><strong>Cập nhật:</strong> Sửa lỗi ethers not defined bằng CDN mới; sử dụng window.ethereum cho config; dummy Firebase cho test.
+            Tích hợp FHEVM Relayer SDK cho FHEAuction. Số tiền bid (ETH) được mã hóa dưới dạng u64 (wei) và gửi handle bytes32 + proof + signature đến bid().
+            <br><strong>Cập nhật:</strong> Sửa ABI và logic bid với EIP712 signature cho publicKey (handle). Deposit = bid amount (test).
         </p>
 
         <!-- Hộp Thông Báo Trạng Thái -->
@@ -396,12 +415,12 @@
                 <h2 class="text-xl font-bold mb-4 text-indigo-300">3. Đặt Bid (Gửi FHE)</h2>
                 <form onsubmit="placeBid(event)">
                     <div class="mb-4">
-                        <label for="bid-amount" class="block text-sm font-medium text-gray-300 mb-1">Số tiền Bid (USD) - Sẽ được Mã hóa FHE</label>
-                        <input type="number" id="bid-amount" name="bid-amount" min="0.01" step="0.01" placeholder="10.00" required
+                        <label for="bid-amount" class="block text-sm font-medium text-gray-300 mb-1">Số tiền Bid (ETH) - Sẽ được Mã hóa FHE (min 0.01)</label>
+                        <input type="number" id="bid-amount" name="bid-amount" min="0.01" step="0.01" placeholder="0.01" required
                                class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
                     </div>
                     <div class="mb-6">
-                        <label for="bid-target" class="block text-sm font-medium text-gray-300 mb-1">Target ID / Data</label>
+                        <label for="bid-target" class="block text-sm font-medium text-gray-300 mb-1">Target ID / Data (ghi chú)</label>
                         <input type="text" id="bid-target" name="bid-target" placeholder="Target Asset ID (ví dụ: TGT-001)" required
                                class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
                     </div>
