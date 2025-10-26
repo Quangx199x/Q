@@ -11,8 +11,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body { font-family: 'Inter', sans-serif; }
     </style>
-    <!-- Tải ethers.js để xử lý kết nối ví và tương tác contract -->
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <!-- Tải ethers.js với CDN đáng tin cậy -->
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     
     <!-- Tải Zama Relayer SDK qua ESM CDN -->
     <script type="module" src="https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js"></script>
@@ -28,10 +28,23 @@
             SepoliaConfig,
         } from 'https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js';
 
-        // Biến toàn cục từ Canvas (BẮT BUỘC SỬ DỤNG)
+        // Biến toàn cục từ Canvas (BẮT BUỘC SỬ DỤNG) - Thêm dummy config nếu thiếu
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        let firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Dummy Firebase config cho testing (thay thế bằng config thực tế của bạn)
+        if (!firebaseConfig) {
+            firebaseConfig = {
+                apiKey: "dummy-api-key",
+                authDomain: "dummy-project.firebaseapp.com",
+                projectId: "dummy-project",
+                storageBucket: "dummy-project.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "dummy-app-id"
+            };
+            console.warn("Using dummy Firebase config for testing. Replace with real config.");
+        }
 
         // --- CẤU HÌNH HỢP ĐỒNG CỦA BẠN ---
         const CONTRACT_ADDRESS = '0xf885102A2aC3eF23744DEFb89ce71aD2b458E0Ab';
@@ -52,6 +65,9 @@
         const initFirebase = async () => {
             if (!firebaseConfig) {
                 console.error("Firebase config is missing.");
+                // Tiếp tục mà không có Firebase để tránh block
+                isAuthReady = true;
+                setupBidHistoryListener('anonymous');
                 return;
             }
             try {
@@ -76,12 +92,17 @@
                 });
             } catch (error) {
                 console.error("Error during Firebase initialization or authentication:", error);
+                isAuthReady = true;
+                setupBidHistoryListener('anonymous');
             }
         };
 
         // Bắt đầu lắng nghe lịch sử Bid
         const setupBidHistoryListener = (userId) => {
-            if (!db) return;
+            if (!db) {
+                console.warn("Firestore not available, skipping bid history.");
+                return;
+            }
             const bidsRef = collection(db, 'artifacts', appId, 'users', userId, 'bids');
             const q = query(bidsRef, limit(10));
 
@@ -167,6 +188,10 @@
                 updateStatus("Vui lòng cài đặt MetaMask hoặc ví tương thích.", 'error');
                 return;
             }
+            if (typeof ethers === 'undefined') {
+                updateStatus("Ethers.js chưa tải. Kiểm tra kết nối mạng.", 'error');
+                return;
+            }
 
             try {
                 updateStatus("Đang kết nối ví...");
@@ -199,7 +224,7 @@
 
         // --- HÀM KẾT NỐI RELAYER ZAMA (THỰC TẾ) ---
         window.connectZamaRelayer = async () => {
-            if (!userWalletAddress || !provider) {
+            if (!userWalletAddress || !window.ethereum) {
                 updateStatus("Vui lòng kết nối ví trước.", 'error');
                 return;
             }
@@ -212,8 +237,9 @@
                 // 1. KHỞI TẠO SDK: Tải WASM
                 await initSDK();
                 
-                // 2. TẠO INSTANCE VỚI CONFIG SEPOLIA
-                const config = { ...SepoliaConfig, network: provider };
+                // 2. TẠO INSTANCE VỚI CONFIG SEPOLIA - Sử dụng window.ethereum như docs
+                let config = { ...SepoliaConfig, network: window.ethereum };
+                config.network = window.ethereum;
                 instance = await createInstance(config);
                 
                 // Không cần client key riêng, sử dụng public key của protocol
@@ -292,11 +318,13 @@
                     transactionHash: txHash,
                     status: 'Thành công',
                     createdAt: Date.now(),
-                    userId: auth.currentUser?.uid || 'anonymous'
+                    userId: auth?.currentUser?.uid || 'anonymous'
                 };
 
-                const userColPath = `artifacts/${appId}/users/${bidData.userId}/bids`;
-                await addDoc(collection(db, userColPath), bidData);
+                if (db) {
+                    const userColPath = `artifacts/${appId}/users/${bidData.userId}/bids`;
+                    await addDoc(collection(db, userColPath), bidData);
+                }
 
                 updateStatus(`Đặt bid thành công! Hash Giao Dịch: ${txHash.substring(0, 10)}...`, 'success');
                 
@@ -325,6 +353,7 @@
             Hợp đồng: <span class="text-indigo-400 font-mono">${CONTRACT_ADDRESS}</span>
             <br>
             Tích hợp FHEVM Relayer SDK. Số tiền bid được mã hóa dưới dạng u64 (cent) và gửi handle bytes đến contract.
+            <br><strong>Cập nhật:</strong> Sửa lỗi ethers not defined bằng CDN mới; sử dụng window.ethereum cho config; dummy Firebase cho test.
         </p>
 
         <!-- Hộp Thông Báo Trạng Thái -->
