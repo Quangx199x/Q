@@ -294,8 +294,8 @@
                 
                 // 1. TẠO BUFFER VÀ THÊM GIÁ TRỊ (Mã hóa số tiền dưới dạng u64, đơn vị wei)
                 const buffer = instance.createEncryptedInput(CONTRACT_ADDRESS, userWalletAddress);
-                const amountInWei = ethers.utils.parseEther(amount.toString()); // Sửa: ethers.utils.parseEther cho v5
-                buffer.add64(amountInWei); // u64 cho externalEuint64
+                const amountInWei = ethers.utils.parseEther(amount.toString()); // Sửa: ethers.utils.parseEther cho v5
+                buffer.add64(amountInWei.toBigInt());
                 
                 // 2. MÃ HÓA VÀ UPLOAD QUA RELAYER (Trả về handles bytes32[] và inputProof bytes)
                 const encryptedInput = await buffer.encrypt();
@@ -443,3 +443,4 @@
 
 </body>
 </html>
+
