@@ -1,446 +1,737 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zama Relayer Bid Tester</title>
-    <!-- Tải Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Cấu hình Font Inter -->
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-    </style>
-    <!-- Tải ethers.js với CDN đáng tin cậy -->
-    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <title>🔐 FHE Blind Auction - Powered by Zama</title>
     
-    <!-- Tải Zama Relayer SDK qua ESM CDN -->
-    <script type="module" src="https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js"></script>
-
-    <!-- Tải các thư viện Firebase -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import {
-            initSDK,
-            createInstance,
-            SepoliaConfig,
-        } from 'https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js';
-
-        // Biến toàn cục từ Canvas (BẮT BUỘC SỬ DỤNG) - Thêm dummy config nếu thiếu
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Dummy Firebase config cho testing (thay thế bằng config thực tế của bạn)
-        if (!firebaseConfig) {
-            firebaseConfig = {
-                apiKey: "dummy-api-key",
-                authDomain: "dummy-project.firebaseapp.com",
-                projectId: "dummy-project",
-                storageBucket: "dummy-project.appspot.com",
-                messagingSenderId: "123456789",
-                appId: "dummy-app-id"
-            };
-            console.warn("Using dummy Firebase config for testing. Replace with real config.");
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Ethers.js v6 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+    
+    <!-- fhevm CDN -->
+   <script
+  src="https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.umd.cjs"
+  type="text/javascript"
+></script>
+    
+    <style>
+        /* Custom styles */
+        body {
+            background: linear-gradient(to bottom right, #581c87, #1e3a8a, #312e81);
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, sans-serif;
         }
-
-        // --- CẤU HÌNH HỢP ĐỒNG CỦA BẠN ---
-        const CONTRACT_ADDRESS = '0xf885102A2aC3eF23744DEFb89ce71aD2b458E0Ab';
-        // ABI ĐÚNG CHO FHEAUCTION: bid(externalEuint64 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature) payable
-        // externalEuint64 là bytes32
-        const CONTRACT_ABI = [
-            "function bid(bytes32 encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature) payable",
-            "function getAuctionInfo() view returns (uint256 round, uint256 endBlock, uint256 state, uint256 maxDeposit, address leadBidder, uint256 validBidders)",
-            "function eip712Domain() view returns (bytes1 fields, string name, string version, uint256 chainId, address verifyingContract, bytes32 salt, uint256[] extensions)"
-        ];
-
-        let app, db, auth;
-        let provider, signer, contract, instance; 
-        let userWalletAddress = null;
-        let isRelayerConnected = false;
-        let isAuthReady = false;
         
-        // Khởi tạo Firebase và xác thực người dùng
-        const initFirebase = async () => {
-            if (!firebaseConfig) {
-                console.error("Firebase config is missing.");
-                // Tiếp tục mà không có Firebase để tránh block
-                isAuthReady = true;
-                setupBidHistoryListener('anonymous');
-                return;
-            }
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        isAuthReady = true;
-                        setupBidHistoryListener(user.uid);
-                    } else {
-                        isAuthReady = true;
-                        setupBidHistoryListener(crypto.randomUUID());
-                    }
-                });
-            } catch (error) {
-                console.error("Error during Firebase initialization or authentication:", error);
-                isAuthReady = true;
-                setupBidHistoryListener('anonymous');
-            }
-        };
-
-        // Bắt đầu lắng nghe lịch sử Bid
-        const setupBidHistoryListener = (userId) => {
-            if (!db) {
-                console.warn("Firestore not available, skipping bid history.");
-                return;
-            }
-            const bidsRef = collection(db, 'artifacts', appId, 'users', userId, 'bids');
-            const q = query(bidsRef, limit(10));
-
-            onSnapshot(q, (snapshot) => {
-                let bids = [];
-                snapshot.forEach(doc => {
-                    bids.push({ id: doc.id, ...doc.data() });
-                });
-                
-                bids.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                updateBidHistory(bids);
-            }, (error) => {
-                console.error("Error listening to bid history:", error);
-            });
-        };
-
-        // Hàm cập nhật giao diện lịch sử Bid
-        const updateBidHistory = (bids) => {
-            const historyContainer = document.getElementById('bid-history');
-            historyContainer.innerHTML = ''; 
-
-            if (bids.length === 0) {
-                historyContainer.innerHTML = '<p class="text-gray-500 italic text-center py-4">Chưa có bid nào được ghi lại.</p>';
-                return;
-            }
-
-            bids.forEach(bid => {
-                const item = document.createElement('div');
-                item.className = 'p-3 bg-white/5 rounded-lg border border-white/10 mb-2 shadow-md transition duration-300 ease-in-out hover:bg-white/10';
-                
-                const date = new Date(bid.createdAt);
-                const timeString = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-
-                let statusColor = 'text-green-400';
-                if (bid.status === 'Thất bại') statusColor = 'text-red-400';
-                if (bid.status === 'Đang xử lý') statusColor = 'text-yellow-400';
-                
-                item.innerHTML = `
-                    <p class="text-sm text-gray-400 mb-1">
-                        <span class="font-semibold text-white">ID Bid:</span> ${bid.id.substring(0, 8)}...
-                    </p>
-                    <p class="text-sm">
-                        <span class="font-semibold text-white">Số tiền:</span> ${bid.amount} USD
-                    </p>
-                    <p class="text-sm">
-                        <span class="font-semibold text-white">Target:</span> ${bid.targetId || 'N/A'}
-                    </p>
-                    <p class="text-sm">
-                        <span class="font-semibold text-white">Thời gian:</span> ${timeString}
-                    </p>
-                    <p class="text-sm">
-                        <span class="font-semibold text-white">Trạng thái:</span> <span class="${statusColor} font-medium">${bid.status}</span>
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1 truncate">
-                        Hash/ID Giao Dịch: ${bid.transactionHash || bid.mockTransactionHash || 'N/A'}
-                    </p>
-                `;
-                historyContainer.appendChild(item);
-            });
-        };
-
-        // Hàm cập nhật thông báo trạng thái
-        const updateStatus = (message, type = 'info') => {
-            const statusBox = document.getElementById('status-box');
-            let color = 'bg-blue-100 text-blue-800';
-            if (type === 'success') color = 'bg-green-100 text-green-800';
-            if (type === 'error') color = 'bg-red-100 text-red-800';
-
-            statusBox.innerHTML = `
-                <div class="p-3 rounded-xl ${color} transition duration-500 ease-in-out transform shadow-lg" role="alert">
-                    <p class="font-medium">${message}</p>
-                </div>
-            `;
-        };
-
-        // --- HÀM KẾT NỐI VÍ (WALLET) ---
-        window.connectWallet = async () => {
-            if (userWalletAddress) {
-                updateStatus("Ví đã kết nối: " + userWalletAddress, 'success');
-                return;
-            }
-            if (typeof window.ethereum === 'undefined') {
-                updateStatus("Vui lòng cài đặt MetaMask hoặc ví tương thích.", 'error');
-                return;
-            }
-            if (typeof ethers === 'undefined') {
-                updateStatus("Ethers.js chưa tải. Kiểm tra kết nối mạng.", 'error');
-                return;
-            }
-
-            try {
-                updateStatus("Đang kết nối ví...");
-                
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                signer = provider.getSigner();
-                userWalletAddress = await signer.getAddress();
-                
-                // Khởi tạo Contract Object
-                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-                document.getElementById('wallet-status').textContent = `Đã Kết Nối: ${userWalletAddress.substring(0, 6)}...${userWalletAddress.slice(-4)}`;
-                document.getElementById('connect-wallet-btn').classList.replace('bg-indigo-600', 'bg-green-600');
-                document.getElementById('connect-wallet-btn').classList.add('opacity-70');
-                document.getElementById('connect-wallet-btn').disabled = true;
-
-                updateStatus(`Kết nối ví thành công! Địa chỉ hợp đồng: ${CONTRACT_ADDRESS.substring(0, 6)}...`, 'success');
-
-                // Bật tính năng Relayer và Bid
-                document.getElementById('relayer-connection-card').classList.remove('opacity-50', 'pointer-events-none');
-                
-            } catch (error) {
-                console.error(error);
-                updateStatus(`Lỗi kết nối ví: ${error.message || 'Người dùng đã từ chối.'}`, 'error');
-                userWalletAddress = null;
-            }
-        };
-
-        // --- HÀM KẾT NỐI RELAYER ZAMA (THỰC TẾ) ---
-        window.connectZamaRelayer = async () => {
-            if (!userWalletAddress || !window.ethereum) {
-                updateStatus("Vui lòng kết nối ví trước.", 'error');
-                return;
-            }
-            if (isRelayerConnected) return;
-
-            try {
-                updateStatus("Đang thiết lập kết nối Relayer Zama và tải WASM...");
-
-                // TÍCH HỢP ZAMA SDK THỰC TẾ
-                // 1. KHỞI TẠO SDK: Tải WASM
-                await initSDK();
-                
-                // 2. TẠO INSTANCE VỚI CONFIG SEPOLIA - Sử dụng window.ethereum như docs
-                let config = { ...SepoliaConfig, network: window.ethereum };
-                config.network = window.ethereum;
-                instance = await createInstance(config);
-                
-                // KẾT THÚC TÍCH HỢP ZAMA SDK
-
-                isRelayerConnected = true;
-                document.getElementById('relayer-status').textContent = `Đã Kết Nối (FHE-Ready)`;
-                document.getElementById('connect-relayer-btn').classList.replace('bg-indigo-600', 'bg-green-600');
-                document.getElementById('connect-relayer-btn').classList.add('opacity-70');
-                document.getElementById('connect-relayer-btn').disabled = true;
-
-                updateStatus("Kết nối Relayer Zama thành công! SDK đã sẵn sàng cho mã hóa FHE.", 'success');
-                
-                // Bật form đặt bid
-                document.getElementById('bid-form-card').classList.remove('opacity-50', 'pointer-events-none');
-
-
-            } catch (error) {
-                console.error("Zama Relayer connection error:", error);
-                updateStatus(`Lỗi kết nối Relayer Zama: ${error.message || 'Lỗi không xác định.'}`, 'error');
-                isRelayerConnected = false;
-            }
-        };
-
-        // --- HÀM ĐẶT BID (TÍCH HỢP ZAMA) ---
-        window.placeBid = async (event) => {
-            event.preventDefault();
-            
-            if (!isRelayerConnected || !contract || !instance) {
-                updateStatus("Vui lòng kết nối Ví và Relayer Zama trước.", 'error');
-                return;
-            }
-
-            const amount = document.getElementById('bid-amount').value;
-            const target = document.getElementById('bid-target').value;
-            const floatAmount = parseFloat(amount);
-
-            if (!amount || isNaN(floatAmount) || floatAmount <= 0 || !target) {
-                updateStatus("Vui lòng nhập số tiền bid hợp lệ và Target ID.", 'error');
-                return;
-            }
-
-            try {
-                const bidBtn = document.getElementById('place-bid-btn');
-                bidBtn.textContent = 'Đang Mã Hóa FHE & Gửi Tx...';
-                bidBtn.disabled = true;
-                bidBtn.classList.replace('bg-indigo-600', 'bg-yellow-600');
-
-                updateStatus(`Đang mã hóa FHE và gửi bid ${amount} ETH cho Target ${target}...`, 'info');
-
-                // TÍCH HỢP ZAMA SDK THỰC TẾ
-                
-                // 1. TẠO BUFFER VÀ THÊM GIÁ TRỊ (Mã hóa số tiền dưới dạng u64, đơn vị wei)
-                const buffer = instance.createEncryptedInput(CONTRACT_ADDRESS, userWalletAddress);
-                const amountInWei = ethers.utils.parseEther(amount.toString()); // Sửa: ethers.utils.parseEther cho v5
-                buffer.add64(amountInWei.toBigInt());
-                
-                // 2. MÃ HÓA VÀ UPLOAD QUA RELAYER (Trả về handles bytes32[] và inputProof bytes)
-                const encryptedInput = await buffer.encrypt();
-                const encryptedBid = encryptedInput.handles[0]; // bytes32 handle cho externalEuint64
-                const inputProof = encryptedInput.inputProof; // bytes ZK proof
-                
-                // 3. CHUẨN BỊ EIP712 SIGNATURE CHO PUBLICKEY (là encryptedBid handle)
-                const network = await provider.getNetwork();
-                const domain = {
-                    name: 'FHEAuction',
-                    version: '3',
-                    chainId: network.chainId,
-                    verifyingContract: CONTRACT_ADDRESS,
-                };
-                const types = {
-                    PublicKey: [
-                        { name: 'key', type: 'bytes32' }
-                    ]
-                };
-                const value = {
-                    key: encryptedBid
-                };
-                const signature = await signer._signTypedData(domain, types, value);
-
-                // 4. GỬI GIAO DỊCH ĐẾN CONTRACT bid(encryptedBid, inputProof, encryptedBid, signature) với value deposit
-                const txResponse = await contract.bid(encryptedBid, inputProof, encryptedBid, signature, {
-                    value: amountInWei // Gửi deposit = bid amount (giả định)
-                });
-                const receipt = await txResponse.wait();
-                const txHash = txResponse.hash;
-
-                // KẾT THÚC TÍCH HỢP ZAMA SDK
-
-                // --- LƯU LẠI BID VÀO FIRESTORE ---
-                const bidData = {
-                    amount: floatAmount,
-                    targetId: target,
-                    userAddress: userWalletAddress,
-                    transactionHash: txHash,
-                    status: 'Thành công',
-                    createdAt: Date.now(),
-                    userId: auth?.currentUser?.uid || 'anonymous'
-                };
-
-                if (db) {
-                    const userColPath = `artifacts/${appId}/users/${bidData.userId}/bids`;
-                    await addDoc(collection(db, userColPath), bidData);
-                }
-
-                updateStatus(`Đặt bid thành công! Hash Giao Dịch: ${txHash.substring(0, 10)}...`, 'success');
-                
-            } catch (error) {
-                console.error("Bid placement error:", error);
-                updateStatus(`Đặt bid thất bại. Lỗi: ${error.message || 'Lỗi không xác định.'}`, 'error');
-            } finally {
-                const bidBtn = document.getElementById('place-bid-btn');
-                bidBtn.textContent = 'Đặt Bid';
-                bidBtn.disabled = false;
-                bidBtn.classList.replace('bg-yellow-600', 'bg-indigo-600');
-            }
-        };
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
         
-        // Khởi tạo Firebase khi cửa sổ tải xong
-        window.onload = initFirebase;
-    </script>
+        .shimmer {
+            background: linear-gradient(
+                to right,
+                transparent 0%,
+                rgba(255, 255, 255, 0.1) 50%,
+                transparent 100%
+            );
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
+        }
+        
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+        
+        /* Hide number input spinners */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        
+        .status-message {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen p-4 md:p-8">
-
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center mb-6 text-indigo-400">
-            Zama FHE Relayer Bid Tester
-        </h1>
-        <p class="text-center text-gray-400 mb-8">
-            Hợp đồng: <span class="text-indigo-400 font-mono">${CONTRACT_ADDRESS}</span>
-            <br>
-            Tích hợp FHEVM Relayer SDK cho FHEAuction. Số tiền bid (ETH) được mã hóa dưới dạng u64 (wei) và gửi handle bytes32 + proof + signature đến bid().
-            <br><strong>Cập nhật:</strong> Sửa lỗi "ethers.parseEther is not a function" bằng ethers.utils.parseEther (v5). Đảm bảo tương thích ethers v5.7.2.
-        </p>
-
-        <!-- Hộp Thông Báo Trạng Thái -->
-        <div id="status-box" class="mb-8 min-h-[4rem]">
-            <div class="p-3 rounded-xl bg-gray-700 text-gray-300 shadow-lg" role="alert">
-                <p class="font-medium">Chờ kết nối ví và relayer để bắt đầu.</p>
-            </div>
+<body class="text-white">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+                🔐 FHE Blind Auction
+            </h1>
+            <p class="text-blue-200 text-lg">Fully Homomorphic Encrypted Bidding on Ethereum</p>
+            <p class="text-sm text-gray-400 mt-2">Powered by Zama FHEVM</p>
         </div>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            
-            <!-- STEP 1: KẾT NỐI VÍ -->
-            <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl border border-indigo-500/50 flex flex-col justify-between">
-                <div>
-                    <h2 class="text-xl font-bold mb-3 text-indigo-300">1. Kết Nối Ví (Ethers)</h2>
-                    <p class="text-sm text-gray-400 mb-4">Lấy `signer` để ký dữ liệu FHE.</p>
-                    <p id="wallet-status" class="text-xs text-gray-500 mb-4 font-mono truncate">Chưa Kết Nối</p>
-                </div>
-                <button id="connect-wallet-btn" onclick="connectWallet()" 
-                        class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-semibold transition duration-300 ease-in-out shadow-lg transform hover:scale-[1.02] active:scale-100">
-                    Kết Nối Ví
-                </button>
-            </div>
 
-            <!-- STEP 2: KẾT NỐI RELAYER (ZAMA SDK) -->
-            <div id="relayer-connection-card" class="bg-gray-800 p-6 rounded-2xl shadow-2xl border border-indigo-500/50 opacity-50 pointer-events-none flex flex-col justify-between">
-                <div>
-                    <h2 class="text-xl font-bold mb-3 text-indigo-300">2. Khởi Tạo Zama Relayer</h2>
-                    <p class="text-sm text-gray-400 mb-4">Tải WASM và tạo instance cho Sepolia.</p>
-                    <p id="relayer-status" class="text-xs text-gray-500 mb-4 font-mono">Chưa Kết Nối</p>
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="glass rounded-2xl p-8 text-center">
+            <div class="animate-pulse">
+                <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full mx-auto flex items-center justify-center text-4xl mb-4">
+                    🔐
                 </div>
-                <button id="connect-relayer-btn" onclick="connectZamaRelayer()" 
-                        class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-semibold transition duration-300 ease-in-out shadow-lg transform hover:scale-[1.02] active:scale-100">
-                    Khởi Tạo Zama Relayer
-                </button>
-            </div>
-
-            <!-- STEP 3: ĐẶT BID (GỬI FHE TRANSACTION) -->
-            <div id="bid-form-card" class="bg-gray-800 p-6 rounded-2xl shadow-2xl border border-indigo-500/50 opacity-50 pointer-events-none">
-                <h2 class="text-xl font-bold mb-4 text-indigo-300">3. Đặt Bid (Gửi FHE)</h2>
-                <form onsubmit="placeBid(event)">
-                    <div class="mb-4">
-                        <label for="bid-amount" class="block text-sm font-medium text-gray-300 mb-1">Số tiền Bid (ETH) - Sẽ được Mã hóa FHE (min 0.01)</label>
-                        <input type="number" id="bid-amount" name="bid-amount" min="0.01" step="0.01" placeholder="0.01" required
-                               class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
-                    </div>
-                    <div class="mb-6">
-                        <label for="bid-target" class="block text-sm font-medium text-gray-300 mb-1">Target ID / Data (ghi chú)</label>
-                        <input type="text" id="bid-target" name="bid-target" placeholder="Target Asset ID (ví dụ: TGT-001)" required
-                               class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
-                    </div>
-                    <button id="place-bid-btn" type="submit"
-                            class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-semibold transition duration-300 ease-in-out shadow-lg transform hover:scale-[1.02] active:scale-100">
-                        Đặt Bid
-                    </button>
-                </form>
+                <h2 class="text-2xl font-bold mb-2">Initializing...</h2>
+                <p class="text-gray-300">Loading Web3 libraries and FHEVM SDK</p>
             </div>
         </div>
 
-        <!-- LỊCH SỬ BID -->
-        <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl border border-gray-700">
-            <h2 class="text-2xl font-bold mb-4 text-white">Lịch Sử Bid</h2>
-            <div id="bid-history" class="space-y-3">
-                <p class="text-gray-500 italic text-center py-4">Đang tải lịch sử...</p>
+        <!-- Main App (hidden initially) -->
+        <div id="main-app" style="display: none;">
+            <!-- Connect Wallet Section -->
+            <div id="connect-section" class="glass rounded-2xl p-8 text-center max-w-md mx-auto">
+                <div class="mb-6">
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full mx-auto flex items-center justify-center text-4xl mb-4">
+                        🔐
+                    </div>
+                    <h2 class="text-2xl font-bold mb-2">Connect Your Wallet</h2>
+                    <p class="text-gray-300">Connect to Sepolia testnet to participate in the auction</p>
+                </div>
+                <button
+                    id="connect-btn"
+                    class="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105"
+                >
+                    Connect MetaMask
+                </button>
+            </div>
+
+            <!-- Auction Interface (hidden initially) -->
+            <div id="auction-interface" style="display: none;">
+                <!-- Account Info -->
+                <div class="glass rounded-xl p-4 mb-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Connected Account</p>
+                            <p id="account-address" class="font-mono text-sm"></p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-400">Contract</p>
+                            <a 
+                                href="https://sepolia.etherscan.io/address/0xf885102a2ac3ef23744defb89ce71ad2b458e0ab"
+                                target="_blank"
+                                class="font-mono text-sm text-blue-400 hover:text-blue-300"
+                            >
+                                0xf885...58e0ab
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auction Info Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Round Info -->
+                    <div class="glass rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400">Round</span>
+                            <span id="auction-state" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+                        </div>
+                        <p id="auction-round" class="text-3xl font-bold">#-</p>
+                    </div>
+
+                    <!-- Time Remaining -->
+                    <div class="glass rounded-xl p-6">
+                        <p class="text-gray-400 mb-2">Time Remaining</p>
+                        <p id="time-remaining" class="text-2xl font-bold">Loading...</p>
+                        <p id="end-time" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+
+                    <!-- Bidders -->
+                    <div class="glass rounded-xl p-6">
+                        <p class="text-gray-400 mb-2">Active Bidders</p>
+                        <p id="bidders-count" class="text-3xl font-bold">-</p>
+                        <p class="text-sm text-gray-400 mt-1">out of 50 max</p>
+                    </div>
+                </div>
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Bid Form -->
+                    <div class="lg:col-span-2 glass rounded-xl p-6">
+                        <h2 class="text-2xl font-bold mb-6 flex items-center">
+                            <span class="text-2xl mr-2">🎯</span>
+                            Place Encrypted Bid
+                        </h2>
+
+                        <div class="space-y-4">
+                            <!-- Bid Amount -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2">
+                                    Bid Amount (ETH) - Encrypted
+                                </label>
+                                <input
+                                    type="number"
+                                    id="bid-amount"
+                                    step="0.01"
+                                    placeholder="Enter your bid amount"
+                                    class="w-full bg-white/5 border border-white/20 rounded-lg px-4 py-3 transition text-white"
+                                />
+                                <p class="text-xs text-gray-400 mt-1">
+                                    ℹ️ Your bid will be encrypted with FHE - nobody can see it!
+                                </p>
+                            </div>
+
+                            <!-- Deposit Amount -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2">
+                                    Deposit Amount (ETH)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="deposit-amount"
+                                    step="0.01"
+                                    placeholder="Minimum: 0.01 ETH"
+                                    class="w-full bg-white/5 border border-white/20 rounded-lg px-4 py-3 transition text-white"
+                                />
+                                <p class="text-xs text-gray-400 mt-1">
+                                    💰 Min deposit: <span id="min-deposit">0.01</span> ETH | Refunded if you don't win
+                                </p>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button
+                                id="submit-bid-btn"
+                                class="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
+                            >
+                                🔐 Submit Encrypted Bid
+                            </button>
+                        </div>
+
+                        <!-- Status Messages -->
+                        <div id="status-container" class="mt-4 space-y-2"></div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-6">
+                        <!-- Your Bid Info -->
+                        <div id="bidder-info" class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-bold mb-4">Your Bid Status</h3>
+                            
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">Has Bid:</span>
+                                    <span id="has-bidded" class="font-bold">❌ No</span>
+                                </div>
+
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">Deposit:</span>
+                                    <span id="your-deposit" class="font-bold">0 ETH</span>
+                                </div>
+
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">Cancelled:</span>
+                                    <span id="is-cancelled" class="font-bold">❌ No</span>
+                                </div>
+                            </div>
+
+                            <!-- Cancel Button -->
+                            <button
+                                id="cancel-bid-btn"
+                                style="display: none;"
+                                class="w-full mt-4 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-200 font-bold py-2 px-4 rounded-lg transition"
+                            >
+                                Cancel Bid
+                            </button>
+                        </div>
+
+                        <!-- Pending Refund -->
+                        <div id="refund-box" style="display: none;" class="glass rounded-xl p-6 border border-green-500/50">
+                            <h3 class="text-lg font-bold mb-3">💰 Pending Refund</h3>
+                            <p id="refund-amount" class="text-3xl font-bold text-green-400 mb-4">0 ETH</p>
+                            <button
+                                id="claim-refund-btn"
+                                class="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105"
+                            >
+                                Claim Refund
+                            </button>
+                        </div>
+
+                        <!-- How It Works -->
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-bold mb-4">🔐 How It Works</h3>
+                            <div class="space-y-3 text-sm text-gray-300">
+                                <div class="flex items-start">
+                                    <span class="mr-2">1️⃣</span>
+                                    <span>Your bid is encrypted with FHE before submission</span>
+                                </div>
+                                <div class="flex items-start">
+                                    <span class="mr-2">2️⃣</span>
+                                    <span>No one can see your bid amount - not even miners</span>
+                                </div>
+                                <div class="flex items-start">
+                                    <span class="mr-2">3️⃣</span>
+                                    <span>Comparisons happen on encrypted data</span>
+                                </div>
+                                <div class="flex items-start">
+                                    <span class="mr-2">4️⃣</span>
+                                    <span>Winner determined after decryption by KMS</span>
+                                </div>
+                                <div class="flex items-start">
+                                    <span class="mr-2">5️⃣</span>
+                                    <span>2.5% platform fee on winning bid</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="mt-8 text-center text-sm text-gray-400">
+                    <p>Built with ❤️ using Zama FHEVM | Sepolia Testnet</p>
+                    <p class="mt-1">
+                        <a 
+                            href="https://docs.zama.ai/fhevm" 
+                            target="_blank"
+                            class="text-blue-400 hover:text-blue-300"
+                        >
+                            Learn more about FHEVM →
+                        </a>
+                    </p>
+                </div>
             </div>
         </div>
     </div>
 
+    <script>
+        // Configuration
+        const CONTRACT_ADDRESS = "0xf885102a2ac3ef23744defb89ce71ad2b458e0ab";
+        const SEPOLIA_CHAIN_ID = 11155111;
+        
+        const CONTRACT_ABI = [
+            "function bid(tuple(bytes32 handle, bytes data) encryptedBid, bytes inputProof, bytes32 publicKey, bytes signature) external payable",
+            "function cancelBid() external",
+            "function claimRefund() external",
+            "function getAuctionInfo() external view returns (uint256 round, uint256 endBlock, uint8 state, uint256 maxDeposit, address leadBidder, uint256 validBidders)",
+            "function getBidderInfo(address bidder) external view returns (uint256 deposit, bool hasBidded, bool cancelled)",
+            "function getEstimatedEndTime() external view returns (uint256)",
+            "function pendingRefunds(address) external view returns (uint256)",
+            "function minBidDeposit() external view returns (uint256)"
+        ];
+
+        const AUCTION_STATES = {
+            0: { name: "Active", color: "text-green-600", bgColor: "bg-green-500" },
+            1: { name: "Ended", color: "text-yellow-600", bgColor: "bg-yellow-500" },
+            2: { name: "Finalizing", color: "text-blue-600", bgColor: "bg-blue-500" },
+            3: { name: "Finalized", color: "text-gray-600", bgColor: "bg-gray-500" },
+            4: { name: "Emergency", color: "text-red-600", bgColor: "bg-red-500" }
+        };
+
+        // Global state
+        let provider = null;
+        let signer = null;
+        let contract = null;
+        let account = null;
+        let fhevmInstance = null;
+        let refreshInterval = null;
+
+        // Initialize app
+        window.addEventListener('load', async () => {
+            console.log('🚀 Initializing FHE Auction DApp...');
+            
+            // Check if libraries loaded
+            if (typeof ethers === 'undefined') {
+                showError('Ethers.js failed to load. Please refresh the page.');
+                return;
+            }
+            
+            if (typeof fhevm === 'undefined') {
+                showError('FHEVM SDK failed to load. Please refresh the page.');
+                return;
+            }
+
+            // Hide loading screen
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+
+            // Setup event listeners
+            document.getElementById('connect-btn').addEventListener('click', connectWallet);
+            document.getElementById('submit-bid-btn').addEventListener('click', submitBid);
+            document.getElementById('cancel-bid-btn').addEventListener('click', cancelBid);
+            document.getElementById('claim-refund-btn').addEventListener('click', claimRefund);
+
+            console.log('✅ App initialized successfully!');
+        });
+
+        // Connect Wallet
+        async function connectWallet() {
+            try {
+                if (!window.ethereum) {
+                    showError('Please install MetaMask!');
+                    return;
+                }
+
+                showStatus('Connecting wallet...', 'blue');
+
+                // Request accounts
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                // Setup provider
+                provider = new ethers.BrowserProvider(window.ethereum);
+                const network = await provider.getNetwork();
+
+                // Check network
+                if (Number(network.chainId) !== SEPOLIA_CHAIN_ID) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0xaa36a7' }] // Sepolia
+                        });
+                    } catch (switchError) {
+                        showError('Please switch to Sepolia testnet in MetaMask');
+                        return;
+                    }
+                }
+
+                // Setup signer and contract
+                signer = await provider.getSigner();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                account = accounts[0];
+
+                // Update UI
+                document.getElementById('account-address').textContent = 
+                    account.slice(0, 6) + '...' + account.slice(-4);
+                
+                document.getElementById('connect-section').style.display = 'none';
+                document.getElementById('auction-interface').style.display = 'block';
+
+                showStatus('✅ Wallet connected!', 'green');
+                
+                // Initialize FHEVM
+                await initializeFHEVM();
+                
+                // Load auction data
+                await loadAuctionData();
+                
+                // Start auto-refresh
+                refreshInterval = setInterval(loadAuctionData, 15000);
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                showError(error.message || 'Failed to connect wallet');
+            }
+        }
+
+        // Initialize FHEVM
+        async function initializeFHEVM() {
+            try {
+                showStatus('Initializing FHE encryption system...', 'blue');
+
+                // Get public key from blockchain
+                const publicKeyCalldata = "0xd9d47bb001";
+                const fheLibAddress = "0x000000000000000000000000000000000000005d";
+                
+                const publicKeyResult = await provider.call({
+                    to: fheLibAddress,
+                    data: publicKeyCalldata
+                });
+
+                const decodedPublicKey = ethers.AbiCoder.defaultAbiCoder().decode(
+                    ["bytes"], 
+                    publicKeyResult
+                );
+                const publicKey = decodedPublicKey[0];
+
+                // Create FHEVM instance
+                fhevmInstance = await fhevm.createInstance({
+                    chainId: SEPOLIA_CHAIN_ID,
+                    publicKey: publicKey
+                });
+
+                showStatus('✅ FHE system ready!', 'green');
+                
+            } catch (error) {
+                console.error('FHEVM initialization error:', error);
+                showError('Failed to initialize FHE system');
+            }
+        }
+
+        // Load Auction Data
+        async function loadAuctionData() {
+            try {
+                // Get auction info
+                const info = await contract.getAuctionInfo();
+                
+                // Update round
+                document.getElementById('auction-round').textContent = '#' + info[0].toString();
+                
+                // Update state
+                const state = Number(info[2]);
+                const stateInfo = AUCTION_STATES[state];
+                const stateEl = document.getElementById('auction-state');
+                stateEl.textContent = stateInfo.name;
+                stateEl.className = `px-3 py-1 rounded-full text-xs font-bold ${stateInfo.bgColor} ${stateInfo.color}`;
+                
+                // Update bidders
+                document.getElementById('bidders-count').textContent = info[5].toString();
+                
+                // Get estimated end time
+                const endTime = await contract.getEstimatedEndTime();
+                const endDate = new Date(Number(endTime) * 1000);
+                document.getElementById('end-time').textContent = 'Ends: ' + endDate.toLocaleString();
+                updateCountdown(endDate);
+                
+                // Get min deposit
+                const minDep = await contract.minBidDeposit();
+                document.getElementById('min-deposit').textContent = ethers.formatEther(minDep);
+                
+                // Get bidder info
+                if (account) {
+                    const bidInfo = await contract.getBidderInfo(account);
+                    
+                    document.getElementById('has-bidded').textContent = 
+                        bidInfo[1] ? '✅ Yes' : '❌ No';
+                    document.getElementById('has-bidded').className = 
+                        bidInfo[1] ? 'font-bold text-green-400' : 'font-bold text-gray-400';
+                    
+                    document.getElementById('your-deposit').textContent = 
+                        ethers.formatEther(bidInfo[0]) + ' ETH';
+                    
+                    document.getElementById('is-cancelled').textContent = 
+                        bidInfo[2] ? '✅ Yes' : '❌ No';
+                    document.getElementById('is-cancelled').className = 
+                        bidInfo[2] ? 'font-bold text-red-400' : 'font-bold text-green-400';
+                    
+                    // Show/hide cancel button
+                    const cancelBtn = document.getElementById('cancel-bid-btn');
+                    if (bidInfo[1] && !bidInfo[2] && state === 0) {
+                        cancelBtn.style.display = 'block';
+                    } else {
+                        cancelBtn.style.display = 'none';
+                    }
+                    
+                    // Get pending refund
+                    const refund = await contract.pendingRefunds(account);
+                    const refundAmount = ethers.formatEther(refund);
+                    if (parseFloat(refundAmount) > 0) {
+                        document.getElementById('refund-box').style.display = 'block';
+                        document.getElementById('refund-amount').textContent = refundAmount + ' ETH';
+                    } else {
+                        document.getElementById('refund-box').style.display = 'none';
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error loading auction data:', error);
+            }
+        }
+
+        // Update Countdown
+        function updateCountdown(endDate) {
+            const now = new Date();
+            const diff = endDate - now;
+            
+            if (diff <= 0) {
+                document.getElementById('time-remaining').textContent = 'Auction Ended';
+                return;
+            }
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            document.getElementById('time-remaining').textContent = 
+                `${hours}h ${minutes}m ${seconds}s`;
+        }
+
+        // Submit Bid
+        async function submitBid() {
+            const bidAmount = document.getElementById('bid-amount').value;
+            const depositAmount = document.getElementById('deposit-amount').value;
+            
+            if (!bidAmount || !depositAmount) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            if (!fhevmInstance) {
+                showError('FHEVM not initialized. Please refresh and try again.');
+                return;
+            }
+
+            try {
+                const submitBtn = document.getElementById('submit-bid-btn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Processing...';
+
+                showStatus('Preparing bid...', 'blue');
+
+                // Convert to wei
+                const bidAmountWei = ethers.parseEther(bidAmount);
+                const bidAmountNumber = Number(bidAmountWei);
+
+                showStatus('🔐 Encrypting bid with FHE...', 'blue');
+
+                // Create encrypted input
+                const input = fhevmInstance.createEncryptedInput(CONTRACT_ADDRESS, account);
+                input.add64(BigInt(bidAmountNumber));
+                const encryptedData = await input.encrypt();
+
+                showStatus('✍️ Generating EIP-712 signature...', 'blue');
+
+                // Generate EIP-712 signature
+                const domain = {
+                    name: "FHEAuction",
+                    version: "3",
+                    chainId: SEPOLIA_CHAIN_ID,
+                    verifyingContract: CONTRACT_ADDRESS
+                };
+
+                const types = {
+                    PublicKey: [{ name: "key", type: "bytes32" }]
+                };
+
+                const value = {
+                    key: encryptedData.handles[0]
+                };
+
+                const signature = await signer.signTypedData(domain, types, value);
+
+                showStatus('📡 Submitting encrypted bid to blockchain...', 'blue');
+
+                // Submit bid
+                const depositValue = ethers.parseEther(depositAmount);
+                const tx = await contract.bid(
+                    {
+                        handle: encryptedData.handles[0],
+                        data: encryptedData.inputProof
+                    },
+                    encryptedData.inputProof,
+                    encryptedData.handles[0],
+                    signature,
+                    {
+                        value: depositValue,
+                        gasLimit: 500000
+                    }
+                );
+
+                showStatus('⏳ Waiting for confirmation...', 'blue');
+
+                const receipt = await tx.wait();
+                
+                showStatus('✅ Bid placed successfully!', 'green');
+                showSuccess(`Transaction: ${receipt.hash.slice(0, 10)}...`);
+
+                // Clear form
+                document.getElementById('bid-amount').value = '';
+                document.getElementById('deposit-amount').value = '';
+
+                // Reload data
+                await loadAuctionData();
+
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🔐 Submit Encrypted Bid';
+
+            } catch (error) {
+                console.error('Bid error:', error);
+                showError(error.message || 'Failed to submit bid');
+                
+                const submitBtn = document.getElementById('submit-bid-btn');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🔐 Submit Encrypted Bid';
+            }
+        }
+
+        // Cancel Bid
+        async function cancelBid() {
+            try {
+                showStatus('Cancelling bid...', 'blue');
+                
+                const tx = await contract.cancelBid();
+                showStatus('⏳ Waiting for confirmation...', 'blue');
+                
+                const receipt = await tx.wait();
+                showStatus('✅ Bid cancelled successfully!', 'green');
+                
+                await loadAuctionData();
+                
+            } catch (error) {
+                console.error('Cancel error:', error);
+                showError(error.message || 'Failed to cancel bid');
+            }
+        }
+
+        // Claim Refund
+        async function claimRefund() {
+            try {
+                showStatus('Claiming refund...', 'blue');
+                
+                const tx = await contract.claimRefund();
+                showStatus('⏳ Waiting for confirmation...', 'blue');
+                
+                const receipt = await tx.wait();
+                showStatus('✅ Refund claimed successfully!', 'green');
+                
+                await loadAuctionData();
+                
+            } catch (error) {
+                console.error('Claim error:', error);
+                showError(error.message || 'Failed to claim refund');
+            }
+        }
+
+        // UI Helper Functions
+        function showStatus(message, type) {
+            const container = document.getElementById('status-container');
+            const colors = {
+                blue: 'bg-blue-500/20 border-blue-500/50 text-blue-200',
+                green: 'bg-green-500/20 border-green-500/50 text-green-200',
+                red: 'bg-red-500/20 border-red-500/50 text-red-200'
+            };
+            
+            container.innerHTML = `
+                <div class="status-message ${colors[type]} border rounded-lg p-3">
+                    <p class="text-sm">${message}</p>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            showStatus('❌ ' + message, 'red');
+        }
+
+        function showSuccess(message) {
+            const container = document.getElementById('status-container');
+            const successMsg = document.createElement('div');
+            successMsg.className = 'status-message bg-green-500/20 border border-green-500/50 rounded-lg p-3';
+            successMsg.innerHTML = `<p class="text-sm text-green-200">${message}</p>`;
+            container.appendChild(successMsg);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
 </body>
 </html>
-
